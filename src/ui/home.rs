@@ -1,419 +1,522 @@
 use eframe::egui;
 
-use crate::app::{CofferApp, Workflow};
+use crate::app::{CofferApp, OperationStage, Workflow};
 
 use crate::ui::{theme, widgets};
 
 pub fn show(app: &mut CofferApp, ctx: &egui::Context) {
+    egui::SidePanel::left("coffer_sidebar")
+        .exact_width(240.0)
+        .resizable(false)
+        .frame(
+            egui::Frame::new()
+                .fill(theme::SURFACE)
+                .stroke(egui::Stroke::new(1.0_f32, theme::BORDER))
+                .inner_margin(16.0),
+        )
+        .show(ctx, |ui| {
+            sidebar(app, ui);
+        });
+
+    egui::TopBottomPanel::bottom("coffer_action_bar")
+        .resizable(false)
+        .frame(
+            egui::Frame::new()
+                .fill(theme::SURFACE)
+                .stroke(egui::Stroke::new(1.0_f32, theme::BORDER))
+                .inner_margin(egui::Margin::symmetric(24, 14)),
+        )
+        .show(ctx, |ui| {
+            action_bar(app, ui);
+        });
+
     egui::CentralPanel::default()
         .frame(
             egui::Frame::new()
                 .fill(theme::BACKGROUND)
-                .inner_margin(24.0),
+                .inner_margin(26.0),
         )
         .show(ctx, |ui| {
-            let available_width = ui.available_width();
-
-            let content_width = available_width.min(theme::MAX_CONTENT_WIDTH);
-
-            let side_space = ((available_width - content_width) / 2.0).max(0.0);
-
-            egui::ScrollArea::vertical()
-                .auto_shrink([false, false])
-                .show(ui, |ui| {
-                    ui.horizontal(|ui| {
-                        ui.add_space(side_space);
-
-                        ui.vertical(|ui| {
-                            ui.set_width(content_width);
-
-                            match app.workflow {
-                                Workflow::Home => {
-                                    show_landing(app, ui);
-                                }
-
-                                Workflow::Encrypt => {
-                                    show_encrypt(app, ui);
-                                }
-
-                                Workflow::Decrypt => {
-                                    show_decrypt(app, ui);
-                                }
-                            }
-                        });
-                    });
-                });
+            content(app, ui);
         });
 }
 
-fn brand_header(ui: &mut egui::Ui, compact: bool) {
+fn sidebar(app: &mut CofferApp, ui: &mut egui::Ui) {
     ui.vertical_centered(|ui| {
-        let image_size = if compact { 72.0 } else { 104.0 };
-
         ui.add(
             egui::Image::new(egui::include_image!("../../assets/Pastelito_img.webp"))
-                .fit_to_exact_size(egui::Vec2::splat(image_size))
-                .corner_radius(18.0),
+                .fit_to_exact_size(egui::Vec2::splat(64.0))
+                .corner_radius(14.0),
         );
 
-        ui.add_space(if compact { 10.0 } else { 16.0 });
+        ui.add_space(10.0);
 
         ui.heading(
             egui::RichText::new("Coffer")
-                .size(if compact { 28.0 } else { 38.0 })
+                .size(25.0)
                 .strong()
                 .color(theme::TEXT_PRIMARY),
         );
 
-        ui.add_space(6.0);
-
         ui.label(
-            egui::RichText::new("Private file protection, built for local use.")
-                .size(15.0)
-                .color(theme::TEXT_SECONDARY),
-        );
-    });
-}
-
-fn show_landing(app: &mut CofferApp, ui: &mut egui::Ui) {
-    ui.add_space(18.0);
-
-    brand_header(ui, false);
-
-    ui.add_space(30.0);
-
-    ui.vertical_centered(|ui| {
-        ui.label(
-            egui::RichText::new("What would you like to do?")
-                .size(22.0)
-                .strong()
-                .color(theme::TEXT_PRIMARY),
-        );
-
-        ui.add_space(6.0);
-
-        ui.label(
-            egui::RichText::new("Choose a secure workflow to begin.").color(theme::TEXT_SECONDARY),
-        );
-    });
-
-    ui.add_space(22.0);
-
-    let use_columns = ui.available_width() >= 620.0;
-
-    if use_columns {
-        ui.columns(2, |columns| {
-            workflow_card(
-                &mut columns[0],
-                "Protect a file",
-                "Encrypt",
-                "Turn a local file into an authenticated Coffer container.",
-                theme::PRIMARY,
-                || {
-                    app.open_encrypt_workflow();
-                },
-            );
-
-            workflow_card(
-                &mut columns[1],
-                "Open a file",
-                "Decrypt",
-                "Use the correct key to securely reveal protected content.",
-                theme::ACCENT,
-                || {
-                    app.open_decrypt_workflow();
-                },
-            );
-        });
-    } else {
-        workflow_card(
-            ui,
-            "Protect a file",
-            "Encrypt",
-            "Turn a local file into an authenticated Coffer container.",
-            theme::PRIMARY,
-            || {
-                app.open_encrypt_workflow();
-            },
-        );
-
-        ui.add_space(theme::SECTION_SPACING);
-
-        workflow_card(
-            ui,
-            "Open a file",
-            "Decrypt",
-            "Use the correct key to securely reveal protected content.",
-            theme::ACCENT,
-            || {
-                app.open_decrypt_workflow();
-            },
-        );
-    }
-
-    ui.add_space(22.0);
-
-    security_strip(ui);
-
-    widgets::footer(ui);
-
-    ui.add_space(20.0);
-}
-
-fn workflow_card(
-    ui: &mut egui::Ui,
-    eyebrow: &str,
-    title: &str,
-    description: &str,
-    accent: egui::Color32,
-    action: impl FnOnce(),
-) {
-    let mut clicked = false;
-
-    egui::Frame::new()
-        .fill(theme::SURFACE)
-        .stroke(egui::Stroke::new(1.0_f32, theme::BORDER))
-        .corner_radius(egui::CornerRadius::same(20))
-        .inner_margin(24.0)
-        .show(ui, |ui| {
-            ui.set_width(ui.available_width());
-
-            ui.set_min_height(230.0);
-
-            ui.label(
-                egui::RichText::new(eyebrow)
-                    .size(12.0)
-                    .strong()
-                    .color(accent),
-            );
-
-            ui.add_space(14.0);
-
-            ui.heading(
-                egui::RichText::new(title)
-                    .size(27.0)
-                    .strong()
-                    .color(theme::TEXT_PRIMARY),
-            );
-
-            ui.add_space(10.0);
-
-            ui.label(
-                egui::RichText::new(description)
-                    .size(14.0)
-                    .color(theme::TEXT_SECONDARY),
-            );
-
-            ui.add_space(26.0);
-
-            if ui
-                .add_sized(
-                    [ui.available_width(), 46.0],
-                    egui::Button::new(
-                        egui::RichText::new(format!("Continue to {title}"))
-                            .strong()
-                            .color(egui::Color32::WHITE),
-                    )
-                    .fill(accent)
-                    .corner_radius(egui::CornerRadius::same(12)),
-                )
-                .clicked()
-            {
-                clicked = true;
-            }
-        });
-
-    if clicked {
-        action();
-    }
-}
-
-fn security_strip(ui: &mut egui::Ui) {
-    theme::raised_frame().show(ui, |ui| {
-        ui.set_width(ui.available_width());
-
-        ui.columns(3, |columns| {
-            security_item(&mut columns[0], "Local", "Files remain on this device.");
-
-            security_item(
-                &mut columns[1],
-                "Authenticated",
-                "Tampering causes decryption to fail.",
-            );
-
-            security_item(
-                &mut columns[2],
-                "Temporary",
-                "Plaintext is held only for the session.",
-            );
-        });
-    });
-}
-
-fn security_item(ui: &mut egui::Ui, title: &str, description: &str) {
-    ui.vertical_centered(|ui| {
-        ui.label(
-            egui::RichText::new(title)
-                .strong()
-                .color(theme::TEXT_PRIMARY),
-        );
-
-        ui.add_space(4.0);
-
-        ui.label(
-            egui::RichText::new(description)
+            egui::RichText::new("Private file protection")
                 .small()
                 .color(theme::TEXT_SECONDARY),
         );
     });
-}
 
-fn workflow_topbar(app: &mut CofferApp, ui: &mut egui::Ui, title: &str) {
-    ui.horizontal(|ui| {
-        if ui
-            .add(
-                egui::Button::new("Back")
-                    .fill(theme::SURFACE_RAISED)
-                    .corner_radius(egui::CornerRadius::same(10)),
-            )
-            .clicked()
-        {
-            app.return_home();
-        }
+    ui.add_space(28.0);
 
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            ui.label(
-                egui::RichText::new(title)
-                    .strong()
-                    .color(theme::TEXT_SECONDARY),
-            );
+    nav_item(app, ui, Workflow::Encrypt, "Encrypt");
+
+    nav_item(app, ui, Workflow::Decrypt, "Decrypt");
+
+    ui.add_space(14.0);
+    ui.separator();
+    ui.add_space(14.0);
+
+    nav_item(app, ui, Workflow::Security, "Security");
+
+    nav_item(app, ui, Workflow::Settings, "Settings");
+
+    ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
+        ui.label(
+            egui::RichText::new("Local • Offline • Private")
+                .small()
+                .color(theme::TEXT_MUTED),
+        );
+
+        ui.add_space(10.0);
+
+        ui.horizontal_centered(|ui| {
+            widgets::status_pill(ui, &app.status);
         });
     });
 }
 
-fn show_decrypt(app: &mut CofferApp, ui: &mut egui::Ui) {
-    workflow_topbar(app, ui, "Decrypt workflow");
-
-    ui.add_space(20.0);
-
-    brand_header(ui, true);
-
-    ui.add_space(26.0);
-
-    file_section(app, ui);
-
-    ui.add_space(theme::SECTION_SPACING);
-
-    key_section(app, ui);
-
-    ui.add_space(theme::SECTION_SPACING);
-
-    status_section(app, ui);
-
-    ui.add_space(24.0);
-
-    if widgets::primary_button(ui, "Decrypt file").clicked() {
-        app.decrypt();
+fn nav_item(app: &mut CofferApp, ui: &mut egui::Ui, workflow: Workflow, label: &str) {
+    if widgets::nav_button(ui, label, app.workflow == workflow).clicked() {
+        app.navigate(workflow);
     }
-
-    widgets::footer(ui);
-
-    ui.add_space(20.0);
 }
 
-fn show_encrypt(app: &mut CofferApp, ui: &mut egui::Ui) {
-    workflow_topbar(app, ui, "Encrypt workflow");
+fn content(app: &mut CofferApp, ui: &mut egui::Ui) {
+    egui::ScrollArea::vertical()
+        .auto_shrink([false, false])
+        .show(ui, |ui| {
+            let width = ui.available_width().min(900.0);
 
-    ui.add_space(20.0);
+            ui.set_max_width(width);
 
-    brand_header(ui, true);
+            match app.workflow {
+                Workflow::Encrypt => {
+                    encrypt_page(app, ui);
+                }
 
-    ui.add_space(26.0);
+                Workflow::Decrypt => {
+                    decrypt_page(app, ui);
+                }
 
-    widgets::coffer_card(
+                Workflow::Security => {
+                    security_placeholder(ui);
+                }
+
+                Workflow::Settings => {
+                    settings_placeholder(ui);
+                }
+            }
+        });
+}
+
+fn page_header(ui: &mut egui::Ui, eyebrow: &str, title: &str, description: &str) {
+    ui.label(
+        egui::RichText::new(eyebrow)
+            .small()
+            .strong()
+            .color(theme::PRIMARY_HOVER),
+    );
+
+    ui.add_space(8.0);
+
+    ui.heading(
+        egui::RichText::new(title)
+            .size(31.0)
+            .strong()
+            .color(theme::TEXT_PRIMARY),
+    );
+
+    ui.add_space(8.0);
+
+    ui.label(
+        egui::RichText::new(description)
+            .size(15.0)
+            .color(theme::TEXT_SECONDARY),
+    );
+}
+
+fn encrypt_page(app: &mut CofferApp, ui: &mut egui::Ui) {
+    page_header(
         ui,
-        "Encryption is coming next",
-        "The interface is ready for the plaintext-file, key-generation, and output controls.",
-        |ui| {
-            ui.label(
-                egui::RichText::new("Planned steps")
-                    .strong()
-                    .color(theme::TEXT_PRIMARY),
-            );
-
-            ui.add_space(10.0);
-
-            ui.label(
-                egui::RichText::new(
-                    "1. Choose a file to protect\n\
-                     2. Generate or select a key\n\
-                     3. Choose an output location\n\
-                     4. Encrypt and verify the result",
-                )
-                .color(theme::TEXT_SECONDARY),
-            );
-        },
+        "ENCRYPT",
+        "Protect a local file",
+        "Choose a file, review the operation, and create a protected Coffer container.",
     );
 
     ui.add_space(18.0);
 
-    security_strip(ui);
-
-    widgets::footer(ui);
-}
-
-fn file_section(app: &mut CofferApp, ui: &mut egui::Ui) {
-    widgets::coffer_card(
+    widgets::workflow_steps(
         ui,
-        "Encrypted file",
-        "Select the Coffer file you want to open.",
-        |ui| {
-            let filename = app
-                .encrypted_file
-                .as_ref()
-                .and_then(|path| path.file_name())
-                .and_then(|name| name.to_str());
+        stage_index(app.stage),
+        &["Select", "Review", "Process", "Complete"],
+    );
 
-            if widgets::selected_file_row(ui, filename, "Choose file") {
-                app.select_file();
+    ui.add_space(24.0);
+
+    if app.stage == OperationStage::Complete {
+        encrypt_result(app, ui);
+        return;
+    }
+
+    match &app.source_file {
+        Some(file) => {
+            if widgets::file_card(ui, file) {
+                app.clear_source_file();
             }
-        },
+        }
+
+        None => {
+            let response = widgets::drop_zone(
+                ui,
+                "Drop a file to protect",
+                "Any local file type can be selected.",
+                "Click to browse",
+            );
+
+            if response.clicked() {
+                app.select_source_file();
+            }
+        }
+    }
+
+    ui.add_space(20.0);
+
+    review_panel(
+        ui,
+        "Encryption settings",
+        &[
+            ("Container", ".coffer"),
+            ("Algorithm", "AES-256-GCM"),
+            ("Key", "Separate random key"),
+        ],
     );
 }
 
-fn key_section(app: &mut CofferApp, ui: &mut egui::Ui) {
-    widgets::coffer_card(
+fn decrypt_page(app: &mut CofferApp, ui: &mut egui::Ui) {
+    page_header(
         ui,
-        "Decryption key",
-        "Choose the key associated with this encrypted file.",
-        |ui| {
-            let filename = app
-                .key_file
-                .as_ref()
-                .and_then(|path| path.file_name())
-                .and_then(|name| name.to_str());
+        "DECRYPT",
+        "Open protected content",
+        "Choose a Coffer container and its matching key.",
+    );
 
-            if widgets::selected_file_row(ui, filename, "Choose key") {
-                app.select_key();
-            }
-        },
+    ui.add_space(18.0);
+
+    widgets::workflow_steps(
+        ui,
+        stage_index(app.stage),
+        &["Select", "Review", "Process", "Complete"],
+    );
+
+    ui.add_space(24.0);
+
+    if app.stage == OperationStage::Complete {
+        decrypt_result(app, ui);
+        return;
+    }
+
+    if ui.available_width() >= 620.0 {
+        ui.columns(2, |columns| {
+            file_picker_column(app, &mut columns[0], true);
+
+            file_picker_column(app, &mut columns[1], false);
+        });
+    } else {
+        file_picker_column(app, ui, true);
+
+        ui.add_space(theme::SECTION_SPACING);
+
+        file_picker_column(app, ui, false);
+    }
+
+    ui.add_space(20.0);
+
+    review_panel(
+        ui,
+        "Decryption readiness",
+        &[
+            (
+                "Container",
+                if app.encrypted_file.is_some() {
+                    "Selected"
+                } else {
+                    "Required"
+                },
+            ),
+            (
+                "Key",
+                if app.key_file.is_some() {
+                    "Selected"
+                } else {
+                    "Required"
+                },
+            ),
+            ("Integrity", "Verified during decryption"),
+        ],
     );
 }
 
-fn status_section(app: &CofferApp, ui: &mut egui::Ui) {
-    theme::card_frame().show(ui, |ui| {
-        ui.set_width(ui.available_width());
+fn file_picker_column(app: &mut CofferApp, ui: &mut egui::Ui, encrypted: bool) {
+    let file = if encrypted {
+        app.encrypted_file.as_ref()
+    } else {
+        app.key_file.as_ref()
+    };
 
-        widgets::status_pill(ui, &app.status);
+    match file {
+        Some(file) => {
+            let remove_clicked = widgets::file_card(ui, file);
 
-        if app.progress > 0.0 {
+            if remove_clicked {
+                if encrypted {
+                    app.clear_encrypted_file();
+                } else {
+                    app.clear_key_file();
+                }
+            }
+        }
+
+        None => {
+            let (title, description) = if encrypted {
+                ("Drop a .coffer file", "The encrypted container to open.")
+            } else {
+                (
+                    "Drop its key file",
+                    "The separate key associated with the container.",
+                )
+            };
+
+            let response = widgets::drop_zone(ui, title, description, "Click to browse");
+
+            if response.clicked() {
+                if encrypted {
+                    app.select_encrypted_file();
+                } else {
+                    app.select_key();
+                }
+            }
+        }
+    }
+}
+
+fn action_bar(app: &mut CofferApp, ui: &mut egui::Ui) {
+    ui.horizontal(|ui| {
+        let message = match app.workflow {
+            Workflow::Encrypt => {
+                if app.can_encrypt() {
+                    "Ready to encrypt"
+                } else {
+                    "Choose a file to continue"
+                }
+            }
+
+            Workflow::Decrypt => {
+                if app.can_decrypt() {
+                    "Ready to decrypt"
+                } else {
+                    "Choose a container and key"
+                }
+            }
+
+            Workflow::Security | Workflow::Settings => "Coffer processes files locally",
+        };
+
+        ui.label(egui::RichText::new(message).color(theme::TEXT_SECONDARY));
+
+        ui.with_layout(
+            egui::Layout::right_to_left(egui::Align::Center),
+            |ui| match app.workflow {
+                Workflow::Encrypt => {
+                    if app.stage != OperationStage::Complete
+                        && widgets::primary_button(ui, "Encrypt file", app.can_encrypt()).clicked()
+                    {
+                        app.run_encrypt();
+                    }
+                }
+
+                Workflow::Decrypt => {
+                    if app.stage != OperationStage::Complete
+                        && widgets::primary_button(ui, "Decrypt file", app.can_decrypt()).clicked()
+                    {
+                        app.run_decrypt();
+                    }
+                }
+
+                Workflow::Security | Workflow::Settings => {}
+            },
+        );
+    });
+}
+
+fn encrypt_result(app: &mut CofferApp, ui: &mut egui::Ui) {
+    let output_path = app
+        .encryption_output
+        .as_ref()
+        .map(|path| path.display().to_string())
+        .unwrap_or_else(|| "Output path unavailable".to_string());
+
+    result_panel(
+        ui,
+        "Encryption complete",
+        "The protected container was created successfully.",
+        &output_path,
+    );
+}
+
+fn decrypt_result(app: &mut CofferApp, ui: &mut egui::Ui) {
+    let output_path = app
+        .decryption_output
+        .as_ref()
+        .map(|path| path.display().to_string())
+        .unwrap_or_else(|| "Restored content".to_string());
+
+    result_panel(
+        ui,
+        "Decryption complete",
+        "The container passed authentication and the content is ready.",
+        &output_path,
+    );
+
+    ui.add_space(16.0);
+
+    let viewer_available = app.decrypted_text.is_some();
+
+    if ui
+        .add_enabled(
+            viewer_available,
+            egui::Button::new("Open Secure Viewer")
+                .fill(theme::PRIMARY)
+                .corner_radius(egui::CornerRadius::same(11))
+                .min_size(egui::Vec2::new(220.0, 44.0)),
+        )
+        .clicked()
+    {
+        app.open_secure_viewer();
+    }
+}
+
+fn result_panel(ui: &mut egui::Ui, title: &str, description: &str, path: &str) {
+    egui::Frame::new()
+        .fill(theme::SURFACE)
+        .stroke(egui::Stroke::new(1.0_f32, theme::SUCCESS))
+        .corner_radius(egui::CornerRadius::same(18))
+        .inner_margin(24.0)
+        .show(ui, |ui| {
+            ui.colored_label(theme::SUCCESS, "● COMPLETE");
+
+            ui.add_space(12.0);
+
+            ui.heading(
+                egui::RichText::new(title)
+                    .size(25.0)
+                    .color(theme::TEXT_PRIMARY),
+            );
+
+            ui.add_space(8.0);
+
+            ui.label(egui::RichText::new(description).color(theme::TEXT_SECONDARY));
+
+            ui.add_space(18.0);
+
+            ui.label(
+                egui::RichText::new(path)
+                    .monospace()
+                    .color(theme::TEXT_PRIMARY),
+            );
+        });
+}
+
+fn review_panel(ui: &mut egui::Ui, title: &str, rows: &[(&str, &str)]) {
+    egui::Frame::new()
+        .fill(theme::SURFACE)
+        .stroke(egui::Stroke::new(1.0_f32, theme::BORDER))
+        .corner_radius(egui::CornerRadius::same(16))
+        .inner_margin(20.0)
+        .show(ui, |ui| {
+            ui.heading(
+                egui::RichText::new(title)
+                    .size(18.0)
+                    .color(theme::TEXT_PRIMARY),
+            );
+
             ui.add_space(14.0);
 
-            ui.add(
-                egui::ProgressBar::new(app.progress)
-                    .desired_width(ui.available_width())
-                    .show_percentage(),
-            );
-        }
-    });
+            for (label, value) in rows {
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new(*label).color(theme::TEXT_SECONDARY));
+
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        ui.label(
+                            egui::RichText::new(*value)
+                                .strong()
+                                .color(theme::TEXT_PRIMARY),
+                        );
+                    });
+                });
+
+                ui.add_space(8.0);
+            }
+        });
+}
+
+fn security_placeholder(ui: &mut egui::Ui) {
+    page_header(
+        ui,
+        "SECURITY",
+        "Security details",
+        "A dedicated explanation of Coffer’s cryptographic model will live here.",
+    );
+
+    ui.add_space(24.0);
+
+    widgets::empty_state(
+        ui,
+        "Security panel planned",
+        "This page will document AES-256-GCM, key separation, integrity verification, warnings, and the .coffer container format.",
+    );
+}
+
+fn settings_placeholder(ui: &mut egui::Ui) {
+    page_header(
+        ui,
+        "SETTINGS",
+        "Application preferences",
+        "Control output locations, appearance, overwrite behavior, and session wiping.",
+    );
+
+    ui.add_space(24.0);
+
+    widgets::empty_state(
+        ui,
+        "Settings are coming next",
+        "Coffer currently uses secure defaults without requiring configuration.",
+    );
+}
+
+fn stage_index(stage: OperationStage) -> usize {
+    match stage {
+        OperationStage::SelectFiles => 0,
+        OperationStage::Review => 1,
+        OperationStage::Processing => 2,
+        OperationStage::Complete => 3,
+    }
 }
