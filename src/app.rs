@@ -7,26 +7,14 @@ use std::path::PathBuf;
 
 pub struct CofferApp {
 
-
-    encrypted_file: Option<PathBuf>,
-
-    key_file: Option<PathBuf>,
-
-
-    status: String,
-
-    progress: f32,
-
-
-    show_success: bool,
-
-    show_error: bool,
-
-
-    show_viewer: bool,
-
-    decrypted_text: Option<String>,
-
+    pub encrypted_file: Option<PathBuf>,
+    pub key_file: Option<PathBuf>,
+    pub status: String,
+    pub progress: f32,
+    pub show_success: bool,
+    pub show_error: bool,
+    pub show_viewer: bool,
+    pub decrypted_text: Option<String>,
 
 }
 
@@ -98,7 +86,7 @@ impl CofferApp {
 
 
 
-    fn select_file(&mut self) {
+    pub fn select_file(&mut self) {
 
 
         if let Some(path) =
@@ -125,7 +113,7 @@ impl CofferApp {
 
 
 
-    fn select_key(&mut self) {
+    pub fn select_key(&mut self) {
 
 
         if let Some(path) =
@@ -153,7 +141,7 @@ impl CofferApp {
 
 
 
-    fn decrypt(&mut self) {
+    pub fn decrypt(&mut self) {
 
 
         if self.encrypted_file.is_none()
@@ -207,366 +195,19 @@ impl CofferApp {
 
 }
 
-
-
 impl eframe::App for CofferApp {
-
 
     fn update(
         &mut self,
         ctx: &egui::Context,
         _frame: &mut eframe::Frame,
-
     )
     {
 
-
-        egui::CentralPanel::default()
-        .show(ctx, |ui| {
-
-
-
-            ui.vertical_centered(|ui| {
-
-
-                ui.heading(
-                    egui::RichText::new(
-                        "🔐 COFFER"
-                    )
-                    .size(32.0)
-                );
-
-
-                ui.label(
-                    "Private file encryption"
-                );
-
-
-            });
-
-
-
-            ui.add_space(25.0);
-
-
-
-
-            Self::card(
-                ui,
-                "Encrypted File",
-                |ui| {
-
-
-                    if ui.button(
-                        "Choose encrypted file"
-                    )
-                    .clicked()
-                    {
-
-                        self.select_file();
-
-                    }
-
-
-
-                    if let Some(path) =
-                        &self.encrypted_file
-                    {
-
-                        ui.label(
-                            egui::RichText::new(
-                                path.display()
-                                .to_string()
-                            )
-                            .weak()
-                        );
-
-                    }
-
-                }
-            );
-
-
-
-            ui.add_space(12.0);
-
-
-
-
-
-            Self::card(
-                ui,
-                "Encryption Key",
-                |ui| {
-
-
-                    if ui.button(
-                        "Choose key"
-                    )
-                    .clicked()
-                    {
-
-                        self.select_key();
-
-                    }
-
-
-
-
-                    if let Some(path) =
-                        &self.key_file
-                    {
-
-                        ui.label(
-                            egui::RichText::new(
-                                path.display()
-                                .to_string()
-                            )
-                            .weak()
-                        );
-
-                    }
-
-
-                }
-            );
-
-
-
-            ui.add_space(12.0);
-
-
-
-
-            Self::card(
-                ui,
-                "Status",
-                |ui| {
-
-
-                    ui.label(
-                        &self.status
-                    );
-
-
-                    ui.add(
-                        egui::ProgressBar::new(
-                            self.progress
-                        )
-                    );
-
-
-                }
-            );
-
-
-
-            ui.add_space(20.0);
-
-
-
-            let decrypt_button =
-                egui::Button::new(
-                    egui::RichText::new(
-                        "Decrypt"
-                    )
-                    .size(18.0)
-
-                );
-
-
-
-            if ui
-                .add_sized(
-                    [
-                        ui.available_width(),
-                        45.0
-                    ],
-                    decrypt_button
-                )
-                .clicked()
-
-            {
-
-                self.decrypt();
-
-            }
-
-
-
-        });
-
-
-
-
-
-
-        // SUCCESS WINDOW
-
-        if self.show_success {
-
-
-            egui::Window::new(
-                "Success"
-            )
-
-            .collapsible(false)
-
-            .show(
-                ctx,
-                |ui| {
-
-
-                    ui.heading(
-                        "✓ Decrypted"
-                    );
-
-
-                    ui.label(
-                        "Your file was successfully decrypted."
-                    );
-
-
-                    ui.add_space(15.0);
-
-
-
-                    if ui.button(
-                        "Open secure viewer"
-                    )
-                    .clicked()
-
-                    {
-
-                        self.show_viewer = true;
-
-                        self.show_success = false;
-
-                    }
-
-
-                }
-            );
-
-
-        }
-
-
-
-
-
-        // SECURE VIEWER
-
-        if self.show_viewer {
-
-
-            egui::Window::new(
-                "Secure Viewer"
-            )
-
-            .collapsible(false)
-
-            .resizable(true)
-
-            .show(
-                ctx,
-                |ui| {
-
-
-                    ui.colored_label(
-                        egui::Color32::RED,
-
-                        "⚠ Closing this window wipes the decrypted content"
-                    );
-
-
-                    ui.separator();
-
-
-
-                    if let Some(text) =
-                        &self.decrypted_text
-                    {
-
-
-                        ui.add(
-                            egui::TextEdit::multiline(
-                                &mut text.clone()
-                            )
-                            .desired_rows(12)
-                        );
-
-
-                    }
-
-
-
-                    if ui.button(
-                        "Close and wipe"
-                    )
-                    .clicked()
-
-                    {
-
-
-                        self.decrypted_text = None;
-
-
-                        self.show_viewer = false;
-
-
-                    }
-
-
-                }
-            );
-
-
-        }
-
-
-
-
-
-        // ERROR WINDOW
-
-        if self.show_error {
-
-
-            egui::Window::new(
-                "Error"
-            )
-
-            .show(
-                ctx,
-                |ui| {
-
-
-                    ui.colored_label(
-                        egui::Color32::RED,
-
-                        "Missing encrypted file or key."
-                    );
-
-
-
-                    if ui.button(
-                        "Close"
-                    )
-                    .clicked()
-                    {
-
-                        self.show_error = false;
-
-                    }
-
-
-                }
-            );
-
-
-        }
-
+        crate::ui::home::show(
+            self,
+            ctx
+        );
 
     }
 

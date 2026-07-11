@@ -62,7 +62,7 @@ pub fn card_frame() -> egui::Frame {
         .fill(SURFACE)
         .stroke(
             Stroke::new(
-                1.0,
+                1.0_f32,
                 BORDER
             )
         )

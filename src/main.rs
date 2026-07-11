@@ -4,7 +4,6 @@ mod key;
 mod paths;
 mod ui;
 
-use crate::ui::theme;
 
 fn main() {
 
