@@ -1,8 +1,10 @@
+mod app;
 mod crypto;
 mod key;
 mod paths;
-mod app;
+mod ui;
 
+use crate::ui::theme;
 
 fn main() {
 
@@ -25,9 +27,19 @@ fn main() {
 
             let ctx = &cc.egui_ctx;
 
-            ctx.set_visuals(
-                egui::Visuals::dark()
-            );
+            let mut visuals = egui::Visuals::dark();
+
+            visuals.panel_fill = ui::theme::BACKGROUND;
+
+            visuals.window_fill = ui::theme::BACKGROUND;
+
+            visuals.selection.bg_fill =
+                ui::theme::PRIMARY;
+
+            visuals.selection.stroke.color =
+                egui::Color32::WHITE;
+
+            ctx.set_visuals(visuals);
 
 
             Ok(Box::new(
