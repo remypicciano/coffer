@@ -4,7 +4,7 @@ use crate::app::{Notice, NoticeKind, SelectedFile};
 use crate::ui::theme;
 
 pub fn primary_button(ui: &mut egui::Ui, text: &str, enabled: bool) -> egui::Response {
-    ui.add_enabled(
+    let response = ui.add_enabled(
         enabled,
         egui::Button::new(
             egui::RichText::new(text)
@@ -16,7 +16,11 @@ pub fn primary_button(ui: &mut egui::Ui, text: &str, enabled: bool) -> egui::Res
         .stroke(egui::Stroke::NONE)
         .corner_radius(egui::CornerRadius::same(11))
         .min_size(egui::Vec2::new(168.0, 44.0)),
-    )
+    );
+    if response.hovered() && enabled {
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
+    response
 }
 
 pub fn nav_button(ui: &mut egui::Ui, label: &str, selected: bool) -> egui::Response {
@@ -46,6 +50,7 @@ pub fn nav_button(ui: &mut egui::Ui, label: &str, selected: bool) -> egui::Respo
 }
 
 pub fn workflow_steps(ui: &mut egui::Ui, active_step: usize, labels: &[&str]) {
+    let compact = ui.available_width() < 620.0;
     ui.horizontal_wrapped(|ui| {
         for (index, label) in labels.iter().enumerate() {
             let complete = index < active_step;
@@ -72,7 +77,13 @@ pub fn workflow_steps(ui: &mut egui::Ui, active_step: usize, labels: &[&str]) {
                     ui.horizontal(|ui| {
                         ui.colored_label(color, if complete { "✓" } else { "●" });
 
-                        ui.label(egui::RichText::new(*label).small().strong().color(
+                        let displayed_label = if compact && index != active_step {
+                            (index + 1).to_string()
+                        } else {
+                            (*label).to_string()
+                        };
+
+                        ui.label(egui::RichText::new(displayed_label).small().strong().color(
                             if active || complete {
                                 theme::TEXT_PRIMARY
                             } else {
@@ -100,12 +111,9 @@ pub fn drop_zone(
     let (rect, response) = ui.allocate_exact_size(desired_size, egui::Sense::click());
 
     let hovered = response.hovered() || !ui.input(|input| input.raw.hovered_files.is_empty());
+    let hover_amount = ui.ctx().animate_bool(response.id, hovered);
 
-    let fill = if hovered {
-        theme::SURFACE_RAISED
-    } else {
-        theme::SURFACE
-    };
+    let fill = theme::SURFACE.lerp_to_gamma(theme::SURFACE_RAISED, hover_amount);
 
     let border = if hovered {
         theme::PRIMARY
@@ -120,6 +128,11 @@ pub fn drop_zone(
         egui::Stroke::new(if hovered { 2.0_f32 } else { 1.0_f32 }, border),
         egui::StrokeKind::Inside,
     );
+
+    if hovered {
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+        ui.ctx().request_repaint();
+    }
 
     let mut child =
         ui.new_child(egui::UiBuilder::new().max_rect(rect.shrink(20.0)).layout(

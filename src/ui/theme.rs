@@ -1,4 +1,4 @@
-use eframe::egui::{self, Color32, CornerRadius, Stroke};
+use eframe::egui::{self, Color32, CornerRadius, Shadow, Stroke};
 
 // Deep navy foundation
 pub const BACKGROUND: Color32 = Color32::from_rgb(8, 13, 27);
@@ -38,10 +38,25 @@ pub const STANDARD_PADDING: f32 = 22.0;
 pub const SECTION_SPACING: f32 = 16.0;
 pub const MAX_CONTENT_WIDTH: f32 = 720.0;
 
+pub const CARD_SHADOW: Shadow = Shadow {
+    offset: [0, 4],
+    blur: 18,
+    spread: 0,
+    color: Color32::from_black_alpha(70),
+};
+
+pub const FLOATING_SHADOW: Shadow = Shadow {
+    offset: [0, 7],
+    blur: 26,
+    spread: 1,
+    color: Color32::from_black_alpha(92),
+};
+
 pub fn card_frame() -> egui::Frame {
     egui::Frame::new()
         .fill(SURFACE)
         .stroke(Stroke::new(1.0_f32, BORDER))
+        .shadow(CARD_SHADOW)
         .corner_radius(CornerRadius::same(CARD_RADIUS))
         .inner_margin(STANDARD_PADDING)
 }
@@ -50,6 +65,7 @@ pub fn raised_frame() -> egui::Frame {
     egui::Frame::new()
         .fill(SURFACE_RAISED)
         .stroke(Stroke::new(1.0_f32, BORDER))
+        .shadow(FLOATING_SHADOW)
         .corner_radius(CornerRadius::same(CARD_RADIUS))
         .inner_margin(STANDARD_PADDING)
 }

@@ -22,6 +22,13 @@ pub enum ProtectStage {
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum ProtectKeySource {
+    #[default]
+    GenerateNew,
+    Existing,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum OpenStage {
     #[default]
     SelectContainer,
@@ -95,7 +102,10 @@ pub struct CofferApp {
     pub workflow: Workflow,
     pub protect_stage: ProtectStage,
     pub open_stage: OpenStage,
+    pub protect_key_source: ProtectKeySource,
+    pub scroll_to_protect_key: bool,
     pub source_file: Option<SelectedFile>,
+    pub protect_key_file: Option<SelectedFile>,
     pub encrypted_file: Option<SelectedFile>,
     pub key_file: Option<SelectedFile>,
     pub notice: Notice,
@@ -121,7 +131,10 @@ impl Default for CofferApp {
             workflow: Workflow::Open,
             protect_stage: ProtectStage::SelectFile,
             open_stage: OpenStage::SelectContainer,
+            protect_key_source: ProtectKeySource::GenerateNew,
+            scroll_to_protect_key: false,
             source_file: None,
+            protect_key_file: None,
             encrypted_file: None,
             key_file: None,
             notice: Notice::new(NoticeKind::Info, "Ready"),
@@ -163,6 +176,9 @@ impl CofferApp {
     pub fn reset_protect(&mut self) {
         self.protect_stage = ProtectStage::SelectFile;
         self.source_file = None;
+        self.protect_key_source = ProtectKeySource::GenerateNew;
+        self.scroll_to_protect_key = false;
+        self.protect_key_file = None;
         self.encryption_output = None;
         self.key_output = None;
         self.progress = 0.0;
@@ -196,6 +212,36 @@ impl CofferApp {
             self.open_stage = OpenStage::SelectKey;
             self.set_notice(NoticeKind::Info, "Now choose the matching key");
         }
+    }
+
+    pub fn select_protect_key(&mut self) {
+        if let Some(path) = FileDialog::new()
+            .add_filter("Coffer keys", &["key"])
+            .pick_file()
+        {
+            self.protect_key_file = Some(SelectedFile::from_path(path));
+            self.set_notice(
+                NoticeKind::Info,
+                "Existing key selected — continue to review",
+            );
+        }
+    }
+
+    pub fn set_protect_key_source(&mut self, source: ProtectKeySource) {
+        self.protect_key_source = source;
+        if source == ProtectKeySource::GenerateNew {
+            self.protect_key_file = None;
+            self.scroll_to_protect_key = false;
+            self.set_notice(NoticeKind::Info, "Coffer will create a new random key");
+        } else {
+            self.scroll_to_protect_key = true;
+            self.set_notice(NoticeKind::Warning, "Choose an existing Coffer key");
+        }
+    }
+
+    pub fn clear_protect_key(&mut self) {
+        self.protect_key_file = None;
+        self.set_notice(NoticeKind::Warning, "Choose an existing Coffer key");
     }
 
     pub fn select_key(&mut self) {
@@ -236,7 +282,7 @@ impl CofferApp {
     }
 
     pub fn review_protect(&mut self) {
-        if self.source_file.is_some() {
+        if self.can_protect() {
             self.protect_stage = ProtectStage::Review;
             self.set_notice(
                 NoticeKind::Info,
@@ -269,6 +315,8 @@ impl CofferApp {
 
     pub fn can_protect(&self) -> bool {
         self.source_file.is_some()
+            && (self.protect_key_source == ProtectKeySource::GenerateNew
+                || self.protect_key_file.is_some())
     }
 
     pub fn can_open(&self) -> bool {
@@ -285,7 +333,11 @@ impl CofferApp {
         self.progress = 1.0;
         if let Some(file) = self.source_file.as_ref() {
             self.encryption_output = Some(PathBuf::from(format!("{}.coffer", file.path.display())));
-            self.key_output = Some(PathBuf::from(format!("{}.coffer.key", file.path.display())));
+            self.key_output = if self.protect_key_source == ProtectKeySource::GenerateNew {
+                Some(PathBuf::from(format!("{}.coffer.key", file.path.display())))
+            } else {
+                None
+            };
         }
         self.protect_stage = ProtectStage::Complete;
         self.set_notice(
@@ -335,9 +387,18 @@ impl CofferApp {
             let Some(path) = dropped.path else { continue };
             match self.workflow {
                 Workflow::Protect => {
-                    self.source_file = Some(SelectedFile::from_path(path));
-                    self.protect_stage = ProtectStage::SelectFile;
-                    self.set_notice(NoticeKind::Info, "File selected — continue to review");
+                    let is_key = path
+                        .extension()
+                        .and_then(|extension| extension.to_str())
+                        .is_some_and(|extension| extension.eq_ignore_ascii_case("key"));
+                    if self.protect_key_source == ProtectKeySource::Existing && is_key {
+                        self.protect_key_file = Some(SelectedFile::from_path(path));
+                        self.set_notice(NoticeKind::Info, "Existing key selected");
+                    } else {
+                        self.source_file = Some(SelectedFile::from_path(path));
+                        self.protect_stage = ProtectStage::SelectFile;
+                        self.set_notice(NoticeKind::Info, "File selected — continue to review");
+                    }
                 }
                 Workflow::Open => assign_open_drop(self, path),
                 Workflow::Security | Workflow::Settings => {}
@@ -468,5 +529,45 @@ mod tests {
     fn notices_have_explicit_severity() {
         let notice = Notice::new(NoticeKind::Success, "Complete");
         assert_eq!(notice.kind, NoticeKind::Success);
+    }
+
+    #[test]
+    fn existing_key_must_be_selected_before_protect_review() {
+        let mut app = CofferApp {
+            source_file: Some(selected("notes.txt")),
+            protect_key_source: ProtectKeySource::Existing,
+            ..Default::default()
+        };
+        assert!(!app.can_protect());
+        app.review_protect();
+        assert_eq!(app.protect_stage, ProtectStage::SelectFile);
+
+        app.protect_key_file = Some(selected("shared.key"));
+        assert!(app.can_protect());
+        app.review_protect();
+        assert_eq!(app.protect_stage, ProtectStage::Review);
+    }
+
+    #[test]
+    fn existing_key_mode_does_not_plan_a_new_key_file() {
+        let mut app = CofferApp {
+            source_file: Some(selected("notes.txt")),
+            protect_key_source: ProtectKeySource::Existing,
+            protect_key_file: Some(selected("shared.key")),
+            ..Default::default()
+        };
+        app.run_protect();
+        assert!(app.encryption_output.is_some());
+        assert!(app.key_output.is_none());
+    }
+
+    #[test]
+    fn choosing_existing_key_requests_one_scroll() {
+        let mut app = CofferApp::default();
+        app.set_protect_key_source(ProtectKeySource::Existing);
+        assert!(app.scroll_to_protect_key);
+
+        app.set_protect_key_source(ProtectKeySource::GenerateNew);
+        assert!(!app.scroll_to_protect_key);
     }
 }

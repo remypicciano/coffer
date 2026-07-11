@@ -8,7 +8,7 @@ mod ui;
 fn main() {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size([960.0, 720.0])
+            .with_inner_size([1200.0, 820.0])
             .with_min_inner_size([760.0, 600.0])
             .with_resizable(true),
 

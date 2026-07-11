@@ -1,11 +1,16 @@
 use eframe::egui;
 
-use crate::app::{CofferApp, OpenStage, ProtectStage, Workflow};
+use crate::app::{CofferApp, OpenStage, ProtectKeySource, ProtectStage, Workflow};
 use crate::ui::{theme, widgets};
 
 pub fn show(app: &mut CofferApp, ctx: &egui::Context) {
+    let window_width = ctx.input(|input| input.content_rect().width());
+    let compact = window_width < 900.0;
+    let sidebar_width = if compact { 196.0 } else { 240.0 };
+    let page_margin = if compact { 18 } else { 26 };
+
     egui::SidePanel::left("coffer_sidebar")
-        .exact_width(240.0)
+        .exact_width(sidebar_width)
         .resizable(false)
         .frame(
             egui::Frame::new()
@@ -13,7 +18,7 @@ pub fn show(app: &mut CofferApp, ctx: &egui::Context) {
                 .stroke(egui::Stroke::new(1.0_f32, theme::BORDER))
                 .inner_margin(16.0),
         )
-        .show(ctx, |ui| sidebar(app, ui));
+        .show(ctx, |ui| sidebar(app, ui, compact));
 
     egui::TopBottomPanel::bottom("coffer_action_bar")
         .resizable(false)
@@ -21,7 +26,7 @@ pub fn show(app: &mut CofferApp, ctx: &egui::Context) {
             egui::Frame::new()
                 .fill(theme::SURFACE)
                 .stroke(egui::Stroke::new(1.0_f32, theme::BORDER))
-                .inner_margin(egui::Margin::symmetric(24, 14)),
+                .inner_margin(egui::Margin::symmetric(if compact { 16 } else { 24 }, 14)),
         )
         .show(ctx, |ui| action_bar(app, ui));
 
@@ -29,22 +34,22 @@ pub fn show(app: &mut CofferApp, ctx: &egui::Context) {
         .frame(
             egui::Frame::new()
                 .fill(theme::BACKGROUND)
-                .inner_margin(26.0),
+                .inner_margin(page_margin),
         )
         .show(ctx, |ui| content(app, ui));
 }
 
-fn sidebar(app: &mut CofferApp, ui: &mut egui::Ui) {
+fn sidebar(app: &mut CofferApp, ui: &mut egui::Ui, compact: bool) {
     ui.vertical_centered(|ui| {
         ui.add(
             egui::Image::new(egui::include_image!("../../assets/Pastelito_img.webp"))
-                .fit_to_exact_size(egui::Vec2::splat(58.0))
+                .fit_to_exact_size(egui::Vec2::splat(if compact { 44.0 } else { 58.0 }))
                 .corner_radius(14.0),
         );
         ui.add_space(9.0);
         ui.heading(
             egui::RichText::new("Coffer")
-                .size(25.0)
+                .size(if compact { 22.0 } else { 25.0 })
                 .strong()
                 .color(theme::TEXT_PRIMARY),
         );
@@ -55,7 +60,7 @@ fn sidebar(app: &mut CofferApp, ui: &mut egui::Ui) {
         );
     });
 
-    ui.add_space(28.0);
+    ui.add_space(if compact { 20.0 } else { 28.0 });
     nav_item(
         app,
         ui,
@@ -112,14 +117,161 @@ fn content(app: &mut CofferApp, ui: &mut egui::Ui) {
     egui::ScrollArea::vertical()
         .auto_shrink([false, false])
         .show(ui, |ui| {
-            ui.set_max_width(ui.available_width().min(900.0));
-            match app.workflow {
-                Workflow::Protect => protect_page(app, ui),
-                Workflow::Open => open_page(app, ui),
-                Workflow::Security => security_page(ui),
-                Workflow::Settings => settings_page(app, ui),
+            let available = ui.available_width();
+
+            if available >= 1_060.0 {
+                let layout_width = available.min(1_240.0);
+                let side_space = ((available - layout_width) * 0.5).max(0.0);
+                ui.horizontal_top(|ui| {
+                    ui.add_space(side_space);
+                    ui.allocate_ui_with_layout(
+                        egui::Vec2::new(layout_width - 316.0, ui.available_height()),
+                        egui::Layout::top_down(egui::Align::Min),
+                        |ui| workflow_content(app, ui),
+                    );
+                    ui.add_space(24.0);
+                    ui.allocate_ui_with_layout(
+                        egui::Vec2::new(292.0, ui.available_height()),
+                        egui::Layout::top_down(egui::Align::Min),
+                        |ui| context_panel(app, ui),
+                    );
+                });
+            } else {
+                let content_width = available.min(860.0);
+                let side_space = ((available - content_width) * 0.5).max(0.0);
+                ui.horizontal_top(|ui| {
+                    ui.add_space(side_space);
+                    ui.allocate_ui_with_layout(
+                        egui::Vec2::new(content_width, ui.available_height()),
+                        egui::Layout::top_down(egui::Align::Min),
+                        |ui| workflow_content(app, ui),
+                    );
+                });
             }
         });
+}
+
+fn workflow_content(app: &mut CofferApp, ui: &mut egui::Ui) {
+    match app.workflow {
+        Workflow::Protect => protect_page(app, ui),
+        Workflow::Open => open_page(app, ui),
+        Workflow::Security => security_page(ui),
+        Workflow::Settings => settings_page(app, ui),
+    }
+}
+
+fn context_panel(app: &CofferApp, ui: &mut egui::Ui) {
+    ui.add_space(4.0);
+    ui.label(
+        egui::RichText::new("COFFER GUIDE")
+            .small()
+            .strong()
+            .color(theme::TEXT_MUTED),
+    );
+    ui.add_space(12.0);
+
+    egui::Frame::new()
+        .fill(theme::SURFACE)
+        .stroke(egui::Stroke::new(1.0_f32, theme::BORDER))
+        .corner_radius(egui::CornerRadius::same(16))
+        .inner_margin(18.0)
+        .show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            let (title, message, accent) = context_copy(app);
+            ui.colored_label(accent, "●");
+            ui.add_space(8.0);
+            ui.heading(
+                egui::RichText::new(title)
+                    .size(18.0)
+                    .color(theme::TEXT_PRIMARY),
+            );
+            ui.add_space(8.0);
+            ui.label(egui::RichText::new(message).color(theme::TEXT_SECONDARY));
+        });
+
+    ui.add_space(14.0);
+    egui::Frame::new()
+        .fill(theme::SURFACE_RAISED.gamma_multiply(0.55))
+        .corner_radius(egui::CornerRadius::same(14))
+        .inner_margin(16.0)
+        .show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.label(
+                egui::RichText::new("Always local")
+                    .strong()
+                    .color(theme::TEXT_PRIMARY),
+            );
+            ui.add_space(6.0);
+            ui.label(
+                egui::RichText::new("Files stay on this device. Coffer does not require an account or upload your content.")
+                    .small()
+                    .color(theme::TEXT_SECONDARY),
+            );
+        });
+}
+
+fn context_copy(app: &CofferApp) -> (&'static str, &'static str, egui::Color32) {
+    match app.workflow {
+        Workflow::Protect => match app.protect_stage {
+            ProtectStage::SelectFile => (
+                "Choose how the file is unlocked",
+                "Create a new random key for this file, or deliberately reuse an existing Coffer key when several protected files must share access.",
+                theme::ACCENT,
+            ),
+            ProtectStage::Review => (
+                "Keep the key separate",
+                "The key is required to restore the file. Store or send it through a different location or channel.",
+                theme::WARNING,
+            ),
+            ProtectStage::Processing => (
+                "Protecting locally",
+                "Keep Coffer open while the operation completes. No content is uploaded.",
+                theme::PRIMARY_HOVER,
+            ),
+            ProtectStage::Complete => (
+                "Two outputs, one responsibility",
+                "The protected file and key work together. Anyone with both can restore the original.",
+                theme::SUCCESS,
+            ),
+        },
+        Workflow::Open => match app.open_stage {
+            OpenStage::SelectContainer => (
+                "Start with the .coffer file",
+                "This is the protected container. Its filename and exact original size will be encrypted in format v1.",
+                theme::ACCENT,
+            ),
+            OpenStage::SelectKey => (
+                "Now choose its key",
+                "Coffer will authenticate the selected pair before any restored content is written.",
+                theme::WARNING,
+            ),
+            OpenStage::Review => (
+                "Authentication comes first",
+                "A wrong key, damaged file, or modified container will fail before Coffer writes plaintext.",
+                theme::ACCENT,
+            ),
+            OpenStage::Processing => (
+                "Restoring locally",
+                "The container is authenticated before the restored file is committed to disk.",
+                theme::PRIMARY_HOVER,
+            ),
+            OpenStage::Complete => (
+                "Restoration complete",
+                "Open the restored file or reveal it in its destination when real file operations are connected.",
+                theme::SUCCESS,
+            ),
+        },
+        Workflow::Security => (
+            "Security without mystery",
+            "Coffer uses established cryptography and keeps sensitive filename metadata inside the encrypted payload.",
+            theme::SUCCESS,
+        ),
+        Workflow::Settings => (
+            "Secure defaults stay fixed",
+            "Convenience can be adjusted, but cryptographic choices are intentionally not exposed as preferences.",
+            theme::ACCENT,
+        ),
+    }
 }
 
 fn page_header(ui: &mut egui::Ui, eyebrow: &str, title: &str, description: &str) {
@@ -175,12 +327,7 @@ fn protect_select(app: &mut CofferApp, ui: &mut egui::Ui) {
                 app.clear_source_file();
             }
             ui.add_space(16.0);
-            info_panel(
-                ui,
-                "What happens next?",
-                "Coffer will create a protected .coffer file and a separate key. You will need both to restore the file later.",
-                theme::ACCENT,
-            );
+            key_source_selector(app, ui);
         }
         None => {
             let response = widgets::drop_zone(
@@ -196,17 +343,161 @@ fn protect_select(app: &mut CofferApp, ui: &mut egui::Ui) {
     }
 }
 
+fn key_source_selector(app: &mut CofferApp, ui: &mut egui::Ui) {
+    section_label(ui, "Unlock method", "Choose a key for this protected file");
+    let available = ui.available_width();
+
+    if available >= 680.0 {
+        ui.columns(2, |columns| {
+            key_source_option(
+                &mut columns[0],
+                app.protect_key_source == ProtectKeySource::GenerateNew,
+                "New random key",
+                "Recommended",
+                "Coffer creates a unique key for this file.",
+                theme::PRIMARY,
+                || app.set_protect_key_source(ProtectKeySource::GenerateNew),
+            );
+            key_source_option(
+                &mut columns[1],
+                app.protect_key_source == ProtectKeySource::Existing,
+                "Existing key",
+                "Advanced",
+                "Protect this file using a key you already have.",
+                theme::ACCENT,
+                || app.set_protect_key_source(ProtectKeySource::Existing),
+            );
+        });
+    } else {
+        key_source_option(
+            ui,
+            app.protect_key_source == ProtectKeySource::GenerateNew,
+            "New random key",
+            "Recommended",
+            "Coffer creates a unique key for this file.",
+            theme::PRIMARY,
+            || app.set_protect_key_source(ProtectKeySource::GenerateNew),
+        );
+        ui.add_space(10.0);
+        key_source_option(
+            ui,
+            app.protect_key_source == ProtectKeySource::Existing,
+            "Existing key",
+            "Advanced",
+            "Protect this file using a key you already have.",
+            theme::ACCENT,
+            || app.set_protect_key_source(ProtectKeySource::Existing),
+        );
+    }
+
+    if app.protect_key_source == ProtectKeySource::Existing {
+        ui.add_space(14.0);
+        match app.protect_key_file.as_ref() {
+            Some(file) => {
+                if widgets::file_card(ui, file) {
+                    app.clear_protect_key();
+                }
+            }
+            None => {
+                let response = widgets::drop_zone(
+                    ui,
+                    "Drop an existing .key file",
+                    "Only a valid Coffer key will be accepted by the production workflow.",
+                    "Browse Coffer keys",
+                );
+                if response.clicked() {
+                    app.select_protect_key();
+                }
+                if app.scroll_to_protect_key {
+                    ui.scroll_to_rect(response.rect, Some(egui::Align::Center));
+                    app.scroll_to_protect_key = false;
+                }
+            }
+        }
+        ui.add_space(12.0);
+        info_panel(
+            ui,
+            "Key reuse changes your risk",
+            "Every file protected with this key can be opened by anyone who has it. A new random key provides stronger separation between files.",
+            theme::WARNING,
+        );
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn key_source_option(
+    ui: &mut egui::Ui,
+    selected: bool,
+    title: &str,
+    badge: &str,
+    description: &str,
+    accent: egui::Color32,
+    on_select: impl FnOnce(),
+) {
+    let fill = if selected {
+        accent.gamma_multiply(0.12)
+    } else {
+        theme::SURFACE
+    };
+    let stroke = if selected {
+        egui::Stroke::new(1.5_f32, accent)
+    } else {
+        egui::Stroke::new(1.0_f32, theme::BORDER)
+    };
+    let response = egui::Frame::new()
+        .fill(fill)
+        .stroke(stroke)
+        .corner_radius(egui::CornerRadius::same(15))
+        .inner_margin(16.0)
+        .show(ui, |ui| {
+            ui.set_min_height(88.0);
+            ui.set_width(ui.available_width());
+            ui.horizontal(|ui| {
+                ui.colored_label(accent, if selected { "●" } else { "○" });
+                ui.label(
+                    egui::RichText::new(title)
+                        .strong()
+                        .color(theme::TEXT_PRIMARY),
+                );
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.label(egui::RichText::new(badge).small().strong().color(accent));
+                });
+            });
+            ui.add_space(8.0);
+            ui.label(
+                egui::RichText::new(description)
+                    .small()
+                    .color(theme::TEXT_SECONDARY),
+            );
+        })
+        .response
+        .interact(egui::Sense::click());
+
+    if response.clicked() && !selected {
+        on_select();
+    }
+}
+
 fn protect_review(app: &CofferApp, ui: &mut egui::Ui) {
     section_label(ui, "Review", "Confirm these details before continuing");
     if let Some(file) = app.source_file.as_ref() {
         widgets::file_card_readonly(ui, file);
         ui.add_space(16.0);
+        let protected_name = format!("{}.coffer", file.name);
+        let key_description = match app.protect_key_source {
+            ProtectKeySource::GenerateNew => format!("{}.coffer.key", file.name),
+            ProtectKeySource::Existing => app
+                .protect_key_file
+                .as_ref()
+                .map(|key| format!("Reuse {}", key.name))
+                .unwrap_or_else(|| "Existing key required".to_string()),
+        };
         detail_panel(
             ui,
-            "Files Coffer will create",
+            "Protection plan",
             &[
-                ("Protected copy", &format!("{}.coffer", file.name)),
-                ("Separate key", &format!("{}.coffer.key", file.name)),
+                ("Protected copy", &protected_name),
+                ("Unlock key", &key_description),
                 ("Save location", "Next to the original (prototype)"),
                 ("Original file", "Will not be changed"),
             ],
@@ -354,12 +645,25 @@ fn protect_result(app: &mut CofferApp, ui: &mut egui::Ui) {
     );
     ui.add_space(16.0);
     let protected = display_path(app.encryption_output.as_ref());
-    let key = display_path(app.key_output.as_ref());
-    detail_panel(
-        ui,
-        "Planned output",
-        &[("Protected file", &protected), ("Key file", &key)],
-    );
+    if app.protect_key_source == ProtectKeySource::GenerateNew {
+        let key = display_path(app.key_output.as_ref());
+        detail_panel(
+            ui,
+            "Planned output",
+            &[("Protected file", &protected), ("New key file", &key)],
+        );
+    } else {
+        let key = app
+            .protect_key_file
+            .as_ref()
+            .map(|file| file.name.as_str())
+            .unwrap_or("Existing key");
+        detail_panel(
+            ui,
+            "Planned output",
+            &[("Protected file", &protected), ("Key reused", key)],
+        );
+    }
     ui.add_space(16.0);
     info_panel(
         ui,
@@ -410,7 +714,12 @@ fn open_result(app: &mut CofferApp, ui: &mut egui::Ui) {
 fn action_bar(app: &mut CofferApp, ui: &mut egui::Ui) {
     ui.horizontal(|ui| {
         let message = action_message(app);
-        ui.label(egui::RichText::new(message).color(theme::TEXT_SECONDARY));
+        if ui.available_width() >= 560.0 {
+            ui.add(
+                egui::Label::new(egui::RichText::new(message).color(theme::TEXT_SECONDARY))
+                    .truncate(),
+            );
+        }
         ui.with_layout(
             egui::Layout::right_to_left(egui::Align::Center),
             |ui| match app.workflow {
@@ -464,6 +773,12 @@ fn action_message(app: &CofferApp) -> &'static str {
     match app.workflow {
         Workflow::Protect => match app.protect_stage {
             ProtectStage::SelectFile if app.can_protect() => "Your file is ready for review",
+            ProtectStage::SelectFile
+                if app.source_file.is_some()
+                    && app.protect_key_source == ProtectKeySource::Existing =>
+            {
+                "Choose the existing key to continue"
+            }
             ProtectStage::SelectFile => "Choose one file to continue",
             ProtectStage::Review => "Review the output and key warning",
             ProtectStage::Processing => "Protecting locally",
