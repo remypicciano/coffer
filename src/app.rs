@@ -3,32 +3,43 @@ use rfd::FileDialog;
 
 use std::path::PathBuf;
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Workflow {
+    #[default]
+    Home,
+    Encrypt,
+    Decrypt,
+}
+
 pub struct CofferApp {
+    pub workflow: Workflow,
+
     pub encrypted_file: Option<PathBuf>,
     pub key_file: Option<PathBuf>,
+
     pub status: String,
     pub progress: f32,
+
     pub show_success: bool,
     pub show_error: bool,
     pub show_viewer: bool,
+
     pub decrypted_text: Option<String>,
 }
 
 impl Default for CofferApp {
     fn default() -> Self {
         Self {
-            encrypted_file: None,
+            workflow: Workflow::Home,
 
+            encrypted_file: None,
             key_file: None,
 
             status: "Ready".into(),
-
             progress: 0.0,
 
             show_success: false,
-
             show_error: false,
-
             show_viewer: false,
 
             decrypted_text: None,
@@ -37,16 +48,33 @@ impl Default for CofferApp {
 }
 
 impl CofferApp {
-    fn card(ui: &mut egui::Ui, title: &str, body: impl FnOnce(&mut egui::Ui)) {
-        egui::Frame::group(ui.style())
-            .inner_margin(16.0)
-            .show(ui, |ui| {
-                ui.heading(title);
+    pub fn open_encrypt_workflow(&mut self) {
+        self.workflow = Workflow::Encrypt;
+        self.reset_session();
+    }
 
-                ui.add_space(8.0);
+    pub fn open_decrypt_workflow(&mut self) {
+        self.workflow = Workflow::Decrypt;
+        self.reset_session();
+    }
 
-                body(ui);
-            });
+    pub fn return_home(&mut self) {
+        self.workflow = Workflow::Home;
+        self.reset_session();
+    }
+
+    fn reset_session(&mut self) {
+        self.encrypted_file = None;
+        self.key_file = None;
+
+        self.status = "Ready".into();
+        self.progress = 0.0;
+
+        self.show_success = false;
+        self.show_error = false;
+        self.show_viewer = false;
+
+        self.decrypted_text = None;
     }
 
     pub fn select_file(&mut self) {
@@ -55,7 +83,6 @@ impl CofferApp {
             .pick_file()
         {
             self.encrypted_file = Some(path);
-
             self.status = "Encrypted file loaded".into();
         }
     }
@@ -66,7 +93,6 @@ impl CofferApp {
             .pick_file()
         {
             self.key_file = Some(path);
-
             self.status = "Key loaded".into();
         }
     }
@@ -81,11 +107,9 @@ impl CofferApp {
         }
 
         self.status = "Decrypting...".into();
-
         self.progress = 1.0;
 
-        // Placeholder until crypto connection
-
+        // Placeholder until the crypto layer is connected.
         self.decrypted_text = Some("Secret decrypted message.".into());
 
         self.status = "Decryption successful".into();

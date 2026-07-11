@@ -19,6 +19,7 @@ fn main() {
         options,
         Box::new(|cc| {
             let ctx = &cc.egui_ctx;
+            egui_extras::install_image_loaders(ctx);
 
             let mut visuals = egui::Visuals::dark();
 
