@@ -1,0 +1,23 @@
+# Rust
+/target/
+
+# macOS
+.DS_Store
+
+# VS Code
+.vscode/
+
+# Secrets
+*.bin
+
+# Encrypted files
+*.coffer
+
+# Environment files
+.env
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp

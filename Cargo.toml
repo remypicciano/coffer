@@ -1,0 +1,15 @@
+[package]
+name = "coffer"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+eframe = "0.33"
+egui = "0.33"
+rfd = "0.15"
+aes-gcm = "0.10"
+argon2 = "0.5"
+rand = "0.9"
+zeroize = "1.8"
+anyhow = "1"
+thiserror = "2"
