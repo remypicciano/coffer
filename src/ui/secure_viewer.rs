@@ -66,7 +66,7 @@ pub fn show(app: &mut CofferApp, ctx: &egui::Context) {
                 )
                 .show(viewer_ctx, |ui| {
                     ui.label(
-                        egui::RichText::new("Closing this window clears the decrypted session.")
+                        egui::RichText::new("Closing clears Coffer’s in-memory preview buffer.")
                             .small()
                             .color(theme::TEXT_SECONDARY),
                     );
@@ -77,7 +77,7 @@ pub fn show(app: &mut CofferApp, ctx: &egui::Context) {
                         .add_sized(
                             [ui.available_width(), 46.0],
                             egui::Button::new(
-                                egui::RichText::new("Close and wipe")
+                                egui::RichText::new("Close preview")
                                     .strong()
                                     .color(egui::Color32::WHITE),
                             )
@@ -167,7 +167,7 @@ fn viewer_header(ui: &mut egui::Ui) {
             );
 
             ui.label(
-                egui::RichText::new("Temporary decrypted content")
+                egui::RichText::new("Read-only sample preview")
                     .small()
                     .color(theme::TEXT_SECONDARY),
             );
@@ -189,7 +189,7 @@ fn status_chip(ui: &mut egui::Ui) {
                 ui.colored_label(theme::WARNING, "●");
 
                 ui.label(
-                    egui::RichText::new("Temporary session")
+                    egui::RichText::new("Temporary preview")
                         .small()
                         .strong()
                         .color(theme::TEXT_PRIMARY),

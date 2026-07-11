@@ -1,5 +1,6 @@
 mod app;
 mod crypto;
+mod error;
 mod key;
 mod paths;
 mod ui;

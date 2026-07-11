@@ -1,27 +1,57 @@
 use eframe::egui;
 use rfd::FileDialog;
-
 use std::fs;
 use std::path::PathBuf;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Workflow {
-    Encrypt,
-
+    Protect,
     #[default]
-    Decrypt,
-
+    Open,
     Security,
     Settings,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum OperationStage {
+pub enum ProtectStage {
     #[default]
-    SelectFiles,
+    SelectFile,
     Review,
     Processing,
     Complete,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum OpenStage {
+    #[default]
+    SelectContainer,
+    SelectKey,
+    Review,
+    Processing,
+    Complete,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NoticeKind {
+    Info,
+    Success,
+    Warning,
+    Error,
+}
+
+#[derive(Clone, Debug)]
+pub struct Notice {
+    pub kind: NoticeKind,
+    pub message: String,
+}
+
+impl Notice {
+    fn new(kind: NoticeKind, message: impl Into<String>) -> Self {
+        Self {
+            kind,
+            message: message.into(),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -39,13 +69,11 @@ impl SelectedFile {
             .and_then(|name| name.to_str())
             .unwrap_or("Unknown file")
             .to_string();
-
         let extension = path
             .extension()
             .and_then(|extension| extension.to_str())
             .unwrap_or("No extension")
             .to_string();
-
         let size_bytes = fs::metadata(&path)
             .map(|metadata| metadata.len())
             .unwrap_or(0);
@@ -65,214 +93,222 @@ impl SelectedFile {
 
 pub struct CofferApp {
     pub workflow: Workflow,
-    pub stage: OperationStage,
-
+    pub protect_stage: ProtectStage,
+    pub open_stage: OpenStage,
     pub source_file: Option<SelectedFile>,
     pub encrypted_file: Option<SelectedFile>,
     pub key_file: Option<SelectedFile>,
-
-    pub status: String,
+    pub notice: Notice,
     pub progress: f32,
-
     pub show_error: bool,
     pub error_message: String,
-
     pub show_viewer: bool,
     pub decrypted_text: Option<String>,
     pub main_window_size_before_viewer: Option<egui::Vec2>,
     pub viewer_was_open: bool,
-
     pub encryption_output: Option<PathBuf>,
+    pub key_output: Option<PathBuf>,
     pub decryption_output: Option<PathBuf>,
+    pub ask_for_output_location: bool,
+    pub confirm_before_replace: bool,
+    pub offer_text_preview: bool,
+    pub clear_recent_locations: bool,
 }
 
 impl Default for CofferApp {
     fn default() -> Self {
         Self {
-            workflow: Workflow::Decrypt,
-            stage: OperationStage::SelectFiles,
-
+            workflow: Workflow::Open,
+            protect_stage: ProtectStage::SelectFile,
+            open_stage: OpenStage::SelectContainer,
             source_file: None,
             encrypted_file: None,
             key_file: None,
-
-            status: "Ready".into(),
+            notice: Notice::new(NoticeKind::Info, "Ready"),
             progress: 0.0,
-
             show_error: false,
             error_message: String::new(),
-
             show_viewer: false,
             decrypted_text: None,
             main_window_size_before_viewer: None,
             viewer_was_open: false,
-
             encryption_output: None,
+            key_output: None,
             decryption_output: None,
+            ask_for_output_location: true,
+            confirm_before_replace: true,
+            offer_text_preview: true,
+            clear_recent_locations: true,
         }
     }
 }
 
 impl CofferApp {
     pub fn navigate(&mut self, workflow: Workflow) {
-        // Navigation intentionally preserves selected files.
         self.workflow = workflow;
-        self.update_stage();
+        let kind = match workflow {
+            Workflow::Security | Workflow::Settings => NoticeKind::Success,
+            Workflow::Protect | Workflow::Open => NoticeKind::Info,
+        };
+        self.set_notice(
+            kind,
+            match workflow {
+                Workflow::Protect => "Choose a file to protect",
+                Workflow::Open => "Choose a protected file",
+                Workflow::Security | Workflow::Settings => "Local • Offline • Private",
+            },
+        );
     }
 
-    pub fn reset_session(&mut self) {
-        self.stage = OperationStage::SelectFiles;
-
+    pub fn reset_protect(&mut self) {
+        self.protect_stage = ProtectStage::SelectFile;
         self.source_file = None;
+        self.encryption_output = None;
+        self.key_output = None;
+        self.progress = 0.0;
+        self.set_notice(NoticeKind::Info, "Choose a file to protect");
+    }
+
+    pub fn reset_open(&mut self) {
+        self.open_stage = OpenStage::SelectContainer;
         self.encrypted_file = None;
         self.key_file = None;
-
-        self.status = "Ready".into();
-        self.progress = 0.0;
-
-        self.show_error = false;
-        self.error_message.clear();
-
-        self.show_viewer = false;
-        self.decrypted_text = None;
-
-        self.encryption_output = None;
         self.decryption_output = None;
+        self.decrypted_text = None;
+        self.progress = 0.0;
+        self.set_notice(NoticeKind::Info, "Choose a protected file");
     }
 
     pub fn select_source_file(&mut self) {
         if let Some(path) = FileDialog::new().pick_file() {
             self.source_file = Some(SelectedFile::from_path(path));
-
-            self.status = "Source file selected".into();
-
-            self.update_stage();
+            self.protect_stage = ProtectStage::SelectFile;
+            self.set_notice(NoticeKind::Info, "File selected — continue to review");
         }
     }
 
     pub fn select_encrypted_file(&mut self) {
         if let Some(path) = FileDialog::new()
-            .add_filter("Coffer encrypted files", &["coffer"])
+            .add_filter("Coffer protected files", &["coffer"])
             .pick_file()
         {
             self.encrypted_file = Some(SelectedFile::from_path(path));
-
-            self.status = "Encrypted file selected".into();
-
-            self.update_stage();
+            self.open_stage = OpenStage::SelectKey;
+            self.set_notice(NoticeKind::Info, "Now choose the matching key");
         }
     }
 
     pub fn select_key(&mut self) {
         if let Some(path) = FileDialog::new()
-            .add_filter("Coffer keys", &["bin", "key"])
+            .add_filter("Coffer keys", &["key", "bin"])
             .pick_file()
         {
             self.key_file = Some(SelectedFile::from_path(path));
-
-            self.status = "Key selected".into();
-
-            self.update_stage();
+            self.open_stage = OpenStage::SelectKey;
+            self.set_notice(NoticeKind::Info, "Key selected — continue to review");
         }
     }
 
     pub fn clear_source_file(&mut self) {
         self.source_file = None;
         self.encryption_output = None;
-        self.update_stage();
+        self.key_output = None;
+        self.protect_stage = ProtectStage::SelectFile;
+        self.set_notice(NoticeKind::Info, "Choose a file to protect");
     }
 
     pub fn clear_encrypted_file(&mut self) {
         self.encrypted_file = None;
         self.decryption_output = None;
-        self.update_stage();
+        self.open_stage = OpenStage::SelectContainer;
+        self.set_notice(NoticeKind::Info, "Choose a protected file");
     }
 
     pub fn clear_key_file(&mut self) {
         self.key_file = None;
         self.decryption_output = None;
-        self.update_stage();
+        self.open_stage = if self.encrypted_file.is_some() {
+            OpenStage::SelectKey
+        } else {
+            OpenStage::SelectContainer
+        };
+        self.set_notice(NoticeKind::Info, "Choose the matching key");
     }
 
-    pub fn handle_dropped_files(&mut self, ctx: &egui::Context) {
-        let dropped_files = ctx.input(|input| input.raw.dropped_files.clone());
-
-        for dropped in dropped_files {
-            let Some(path) = dropped.path else {
-                continue;
-            };
-
-            match self.workflow {
-                Workflow::Encrypt => {
-                    self.source_file = Some(SelectedFile::from_path(path));
-
-                    self.status = "Source file dropped".into();
-                }
-
-                Workflow::Decrypt => {
-                    assign_decryption_drop(self, path);
-                }
-
-                Workflow::Security | Workflow::Settings => {}
-            }
+    pub fn review_protect(&mut self) {
+        if self.source_file.is_some() {
+            self.protect_stage = ProtectStage::Review;
+            self.set_notice(
+                NoticeKind::Info,
+                "Review where your protected files will be saved",
+            );
         }
-
-        self.update_stage();
     }
 
-    pub fn can_encrypt(&self) -> bool {
+    pub fn review_open(&mut self) {
+        if self.can_open() {
+            self.open_stage = OpenStage::Review;
+            self.set_notice(NoticeKind::Info, "Review before restoring the file");
+        }
+    }
+
+    pub fn back(&mut self) {
+        match self.workflow {
+            Workflow::Protect => self.protect_stage = ProtectStage::SelectFile,
+            Workflow::Open => {
+                self.open_stage = if self.encrypted_file.is_some() {
+                    OpenStage::SelectKey
+                } else {
+                    OpenStage::SelectContainer
+                }
+            }
+            Workflow::Security | Workflow::Settings => {}
+        }
+        self.set_notice(NoticeKind::Info, "Selections preserved");
+    }
+
+    pub fn can_protect(&self) -> bool {
         self.source_file.is_some()
     }
 
-    pub fn can_decrypt(&self) -> bool {
+    pub fn can_open(&self) -> bool {
         self.encrypted_file.is_some() && self.key_file.is_some()
     }
 
-    pub fn run_encrypt(&mut self) {
-        if !self.can_encrypt() {
-            self.show_error("Choose a file before encrypting.");
-
+    pub fn run_protect(&mut self) {
+        if !self.can_protect() {
+            self.show_error("Choose a file before continuing.");
             return;
         }
 
-        self.stage = OperationStage::Processing;
-        self.status = "Encrypting file...".into();
+        self.protect_stage = ProtectStage::Processing;
         self.progress = 1.0;
-
-        let output = self
-            .source_file
-            .as_ref()
-            .map(|file| PathBuf::from(format!("{}.coffer", file.path.display())));
-
-        self.encryption_output = output;
-
-        self.status = "Encryption complete".into();
-
-        self.stage = OperationStage::Complete;
+        if let Some(file) = self.source_file.as_ref() {
+            self.encryption_output = Some(PathBuf::from(format!("{}.coffer", file.path.display())));
+            self.key_output = Some(PathBuf::from(format!("{}.coffer.key", file.path.display())));
+        }
+        self.protect_stage = ProtectStage::Complete;
+        self.set_notice(
+            NoticeKind::Warning,
+            "Prototype complete — no files were written",
+        );
     }
 
-    pub fn run_decrypt(&mut self) {
-        if !self.can_decrypt() {
-            self.show_error("Choose both a .coffer file and its key before decrypting.");
-
+    pub fn run_open(&mut self) {
+        if !self.can_open() {
+            self.show_error("Choose both the protected file and its matching key.");
             return;
         }
 
-        self.stage = OperationStage::Processing;
-        self.status = "Decrypting file...".into();
+        self.open_stage = OpenStage::Processing;
         self.progress = 1.0;
-
-        // Placeholder until crypto.rs is connected.
         self.decrypted_text = Some("Secret decrypted message.".to_string());
-
         self.decryption_output = Some(PathBuf::from("Restored content"));
-
-        self.status = "Decryption complete".into();
-
-        self.stage = OperationStage::Complete;
-
-        // Open the real secondary viewer immediately.
-        self.show_viewer = true;
+        self.open_stage = OpenStage::Complete;
+        self.set_notice(
+            NoticeKind::Warning,
+            "Prototype complete — no file was restored",
+        );
     }
 
     pub fn open_secure_viewer(&mut self) {
@@ -290,32 +326,36 @@ impl CofferApp {
     pub fn show_error(&mut self, message: impl Into<String>) {
         self.error_message = message.into();
         self.show_error = true;
-        self.status = "Action required".into();
+        self.set_notice(NoticeKind::Error, "Action required");
     }
 
-    fn update_stage(&mut self) {
-        self.stage = match self.workflow {
-            Workflow::Encrypt if self.source_file.is_some() => OperationStage::Review,
+    pub fn handle_dropped_files(&mut self, ctx: &egui::Context) {
+        let dropped_files = ctx.input(|input| input.raw.dropped_files.clone());
+        for dropped in dropped_files {
+            let Some(path) = dropped.path else { continue };
+            match self.workflow {
+                Workflow::Protect => {
+                    self.source_file = Some(SelectedFile::from_path(path));
+                    self.protect_stage = ProtectStage::SelectFile;
+                    self.set_notice(NoticeKind::Info, "File selected — continue to review");
+                }
+                Workflow::Open => assign_open_drop(self, path),
+                Workflow::Security | Workflow::Settings => {}
+            }
+        }
+    }
 
-            Workflow::Decrypt if self.can_decrypt() => OperationStage::Review,
-
-            Workflow::Encrypt | Workflow::Decrypt => OperationStage::SelectFiles,
-
-            Workflow::Security | Workflow::Settings => OperationStage::SelectFiles,
-        };
-
-        self.progress = 0.0;
+    fn set_notice(&mut self, kind: NoticeKind, message: impl Into<String>) {
+        self.notice = Notice::new(kind, message);
     }
 
     fn handle_shortcuts(&mut self, ctx: &egui::Context) {
         let command = egui::Modifiers::COMMAND;
-
         if ctx.input_mut(|input| input.consume_key(command, egui::Key::E)) {
-            self.navigate(Workflow::Encrypt);
+            self.navigate(Workflow::Protect);
         }
-
         if ctx.input_mut(|input| input.consume_key(command, egui::Key::D)) {
-            self.navigate(Workflow::Decrypt);
+            self.navigate(Workflow::Open);
         }
     }
 }
@@ -324,16 +364,13 @@ impl eframe::App for CofferApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.handle_shortcuts(ctx);
         self.handle_dropped_files(ctx);
-
         crate::ui::home::show(self, ctx);
-
         crate::ui::dialogs::show(self, ctx);
-
         crate::ui::secure_viewer::show(self, ctx);
     }
 }
 
-fn assign_decryption_drop(app: &mut CofferApp, path: PathBuf) {
+fn assign_open_drop(app: &mut CofferApp, path: PathBuf) {
     let extension = path
         .extension()
         .and_then(|extension| extension.to_str())
@@ -343,19 +380,19 @@ fn assign_decryption_drop(app: &mut CofferApp, path: PathBuf) {
     match extension.as_str() {
         "coffer" => {
             app.encrypted_file = Some(SelectedFile::from_path(path));
-
-            app.status = "Encrypted file dropped".into();
+            app.open_stage = OpenStage::SelectKey;
+            app.set_notice(NoticeKind::Info, "Protected file selected");
         }
-
         "bin" | "key" => {
             app.key_file = Some(SelectedFile::from_path(path));
-
-            app.status = "Key file dropped".into();
+            app.open_stage = if app.encrypted_file.is_some() {
+                OpenStage::SelectKey
+            } else {
+                OpenStage::SelectContainer
+            };
+            app.set_notice(NoticeKind::Info, "Key selected");
         }
-
-        _ => {
-            app.show_error("Drop a .coffer file or a supported key file.");
-        }
+        _ => app.show_error("Drop a .coffer file or a supported .key file."),
     }
 }
 
@@ -363,9 +400,7 @@ fn format_file_size(size: u64) -> String {
     const KB: f64 = 1024.0;
     const MB: f64 = KB * 1024.0;
     const GB: f64 = MB * 1024.0;
-
     let size = size as f64;
-
     if size >= GB {
         format!("{:.2} GB", size / GB)
     } else if size >= MB {
@@ -374,5 +409,64 @@ fn format_file_size(size: u64) -> String {
         format!("{:.1} KB", size / KB)
     } else {
         format!("{} bytes", size as u64)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn selected(name: &str) -> SelectedFile {
+        SelectedFile {
+            path: PathBuf::from(name),
+            name: name.to_string(),
+            extension: name
+                .rsplit_once('.')
+                .map(|(_, ext)| ext)
+                .unwrap_or("")
+                .to_string(),
+            size_bytes: 42,
+        }
+    }
+
+    #[test]
+    fn navigation_preserves_selected_files() {
+        let mut app = CofferApp {
+            source_file: Some(selected("notes.txt")),
+            ..Default::default()
+        };
+        app.navigate(Workflow::Settings);
+        app.navigate(Workflow::Protect);
+        assert!(app.source_file.is_some());
+    }
+
+    #[test]
+    fn protect_requires_explicit_review_transition() {
+        let mut app = CofferApp {
+            source_file: Some(selected("notes.txt")),
+            ..Default::default()
+        };
+        assert_eq!(app.protect_stage, ProtectStage::SelectFile);
+        app.review_protect();
+        assert_eq!(app.protect_stage, ProtectStage::Review);
+    }
+
+    #[test]
+    fn open_requires_both_files_before_review() {
+        let mut app = CofferApp {
+            encrypted_file: Some(selected("notes.coffer")),
+            ..Default::default()
+        };
+        app.review_open();
+        assert_ne!(app.open_stage, OpenStage::Review);
+        app.key_file = Some(selected("notes.key"));
+        app.review_open();
+        assert_eq!(app.open_stage, OpenStage::Review);
+    }
+
+    #[test]
+    fn notices_have_explicit_severity() {
+        let notice = Notice::new(NoticeKind::Success, "Complete");
+        assert_eq!(notice.kind, NoticeKind::Success);
     }
 }

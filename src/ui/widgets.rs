@@ -1,6 +1,6 @@
 use eframe::egui;
 
-use crate::app::SelectedFile;
+use crate::app::{Notice, NoticeKind, SelectedFile};
 use crate::ui::theme;
 
 pub fn primary_button(ui: &mut egui::Ui, text: &str, enabled: bool) -> egui::Response {
@@ -215,6 +215,83 @@ pub fn file_card(ui: &mut egui::Ui, file: &SelectedFile) -> bool {
     remove_clicked
 }
 
+pub fn file_card_readonly(ui: &mut egui::Ui, file: &SelectedFile) {
+    file_details_frame(ui, file);
+}
+
+pub fn compact_file_row(
+    ui: &mut egui::Ui,
+    label: &str,
+    file: &SelectedFile,
+    _on_remove: impl FnOnce(),
+) {
+    egui::Frame::new()
+        .fill(theme::SURFACE)
+        .stroke(egui::Stroke::new(1.0_f32, theme::BORDER))
+        .corner_radius(egui::CornerRadius::same(12))
+        .inner_margin(14.0)
+        .show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new(label).small().color(theme::TEXT_MUTED));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.add(
+                        egui::Label::new(
+                            egui::RichText::new(&file.name)
+                                .strong()
+                                .color(theme::TEXT_PRIMARY),
+                        )
+                        .truncate(),
+                    );
+                });
+            });
+        });
+}
+
+fn file_details_frame(ui: &mut egui::Ui, file: &SelectedFile) {
+    egui::Frame::new()
+        .fill(theme::SURFACE)
+        .stroke(egui::Stroke::new(1.0_f32, theme::BORDER))
+        .corner_radius(egui::CornerRadius::same(16))
+        .inner_margin(18.0)
+        .show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.horizontal(|ui| {
+                ui.vertical(|ui| {
+                    ui.add(
+                        egui::Label::new(
+                            egui::RichText::new(&file.name)
+                                .size(16.0)
+                                .strong()
+                                .color(theme::TEXT_PRIMARY),
+                        )
+                        .truncate(),
+                    );
+                    ui.add_space(5.0);
+                    ui.label(
+                        egui::RichText::new(format!(
+                            "{} • {}",
+                            file.extension.to_uppercase(),
+                            file.readable_size()
+                        ))
+                        .small()
+                        .color(theme::TEXT_SECONDARY),
+                    );
+                    ui.add_space(3.0);
+                    ui.add(
+                        egui::Label::new(
+                            egui::RichText::new(file.path.display().to_string())
+                                .small()
+                                .color(theme::TEXT_MUTED),
+                        )
+                        .truncate(),
+                    )
+                    .on_hover_text(file.path.display().to_string());
+                });
+            });
+        });
+}
+
 pub fn empty_state(ui: &mut egui::Ui, title: &str, description: &str) {
     ui.vertical_centered(|ui| {
         ui.add_space(30.0);
@@ -233,17 +310,12 @@ pub fn empty_state(ui: &mut egui::Ui, title: &str, description: &str) {
     });
 }
 
-pub fn status_pill(ui: &mut egui::Ui, status: &str) {
-    let lowercase = status.to_lowercase();
-
-    let color = if lowercase.contains("complete") {
-        theme::SUCCESS
-    } else if lowercase.contains("required") {
-        theme::DANGER
-    } else if lowercase.contains("encrypting") || lowercase.contains("decrypting") {
-        theme::WARNING
-    } else {
-        theme::ACCENT
+pub fn status_pill(ui: &mut egui::Ui, notice: &Notice) {
+    let color = match notice.kind {
+        NoticeKind::Info => theme::ACCENT,
+        NoticeKind::Success => theme::SUCCESS,
+        NoticeKind::Warning => theme::WARNING,
+        NoticeKind::Error => theme::DANGER,
     };
 
     egui::Frame::new()
@@ -256,7 +328,7 @@ pub fn status_pill(ui: &mut egui::Ui, status: &str) {
 
                 ui.add(
                     egui::Label::new(
-                        egui::RichText::new(status)
+                        egui::RichText::new(&notice.message)
                             .small()
                             .strong()
                             .color(theme::TEXT_PRIMARY),
