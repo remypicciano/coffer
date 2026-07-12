@@ -33,7 +33,6 @@ Status: implemented for v1
 - Register the file type and application association on supported desktop platforms.
 - Apply owner-only permissions where the platform supports them.
 - Never store a container filename, container identifier, or key fingerprint in the key file.
-- Provide an explicit migration path for early `.key` prototypes.
 - Exclude key carriers, passphrases, metadata sanitization, cloud transport, and other optional modes from v1.
 
 ## Milestone 4: Coffer format v2 advanced privacy

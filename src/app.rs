@@ -310,7 +310,7 @@ impl CofferApp {
 
     pub fn select_key(&mut self) {
         if let Some(path) = FileDialog::new()
-            .add_filter("Coffer keys", &["cofferkey", "key", "bin"])
+            .add_filter("Coffer keys", &["cofferkey"])
             .pick_file()
         {
             self.key_file = Some(SelectedFile::from_path(path));
@@ -752,7 +752,7 @@ fn assign_open_drop(app: &mut CofferApp, path: PathBuf) {
             app.open_stage = OpenStage::SelectKey;
             app.set_notice(NoticeKind::Info, "Protected file selected");
         }
-        "bin" | "key" | "cofferkey" => {
+        "cofferkey" => {
             app.key_file = Some(SelectedFile::from_path(path));
             app.open_stage = if app.encrypted_file.is_some() {
                 OpenStage::SelectKey
