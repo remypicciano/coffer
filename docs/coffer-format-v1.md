@@ -78,3 +78,28 @@ The key format marker identifies a valid Coffer key; it does not reveal which co
 ## Compatibility
 
 Version 1 readers must reject unknown versions rather than guessing. Future metadata, chunked large-file encryption, secret sharing, or algorithm changes require a deliberately specified new format version. Cross-platform test fixtures must guarantee byte-for-byte compatibility on macOS, Windows, and Linux.
+
+### Deterministic compatibility fixture
+
+This fixture is for compatibility testing only. Production keys and nonces must always come from the operating system's secure random source.
+
+| Input | Value |
+| --- | --- |
+| Key | 32 bytes of `0x11` |
+| Nonce | 12 bytes of `0x22` |
+| Filename | UTF-8 `note.txt` |
+| File bytes | UTF-8 `hello` |
+
+Expected complete container, encoded as hexadecimal:
+
+```text
+434f4646455200010101222222222222222222222222000000000000002717ff6926b4aab12b9d4bde3c48a6e9d51f96a58706edc3edae22ac447457f57b1a54dfb50676d9
+```
+
+Expected decrypted payload, encoded as hexadecimal:
+
+```text
+00086e6f74652e747874000000000000000568656c6c6f
+```
+
+The automated Rust test locks the complete container bytes. The vector has also been independently decrypted with Node's AES-256-GCM implementation using bytes `0..30` as associated authenticated data, bytes `10..22` as the nonce, and the final 16 ciphertext bytes as the authentication tag.
