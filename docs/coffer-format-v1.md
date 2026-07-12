@@ -1,6 +1,6 @@
 # Coffer container and key format v1
 
-Status: design specification. The current UI still simulates file operations; this document defines the minimal format that the real implementation must follow.
+Status: implemented specification. The production core, filesystem operations, and UI integration follow this format. The deterministic compatibility fixture is enforced by the automated test suite.
 
 All integers are unsigned and stored in big-endian byte order. Parsers must reject truncated input, inconsistent lengths, unsupported versions, and unsupported algorithms.
 
@@ -49,7 +49,7 @@ On restore, the filename remains untrusted even though it was authenticated. Cof
 
 Authentication failures use one public error regardless of whether the likely cause is a wrong key, modified prefix, modified ciphertext, or corruption.
 
-## `.key` file
+## `.cofferkey` file
 
 | Field | Size | Value |
 | --- | ---: | --- |
@@ -59,7 +59,7 @@ Authentication failures use one public error regardless of whether the likely ca
 | Reserved | 2 bytes | Must be `0` in v1 |
 | Key material | 32 bytes | Cryptographically random AES key |
 
-The encoded key file is exactly 44 bytes. Other lengths, magic values, versions, algorithms, or nonzero reserved bytes are invalid. Writers should request owner-only permissions on Unix-like systems (`0600`) and must not silently replace an existing key file.
+The `.cofferkey` extension identifies the file in desktop interfaces; the extension is not a security boundary. The encoded key file is exactly 44 bytes. Other lengths, magic values, versions, algorithms, or nonzero reserved bytes are invalid. Writers request owner-only permissions on Unix-like systems (`0600`) and never replace an existing key file.
 
 The key format marker identifies a valid Coffer key; it does not reveal which container it opens. AES-GCM authentication determines whether the selected key matches.
 

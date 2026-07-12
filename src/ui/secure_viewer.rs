@@ -40,31 +40,31 @@ pub fn show(app: &mut CofferApp, ctx: &egui::Context) {
     ctx.show_viewport_immediate(
         egui::ViewportId::from_hash_of(VIEWER_ID),
         builder,
-        |viewer_ctx, _class| {
-            if viewer_ctx.input(|input| input.viewport().close_requested()) {
+        |viewer_ui, _class| {
+            if viewer_ui.input(|input| input.viewport().close_requested()) {
                 close_and_wipe = true;
             }
 
-            egui::TopBottomPanel::top("secure_viewer_header")
+            egui::Panel::top("secure_viewer_header")
                 .resizable(false)
                 .frame(
                     egui::Frame::new()
                         .fill(theme::background())
                         .inner_margin(egui::Margin::symmetric(24, 20)),
                 )
-                .show(viewer_ctx, |ui| {
+                .show_inside(viewer_ui, |ui| {
                     viewer_header(ui);
                 });
 
-            egui::TopBottomPanel::bottom("secure_viewer_footer")
+            egui::Panel::bottom("secure_viewer_footer")
                 .resizable(false)
-                .exact_height(112.0)
+                .exact_size(112.0)
                 .frame(
                     egui::Frame::new()
                         .fill(theme::background())
                         .inner_margin(egui::Margin::symmetric(24, 14)),
                 )
-                .show(viewer_ctx, |ui| {
+                .show_inside(viewer_ui, |ui| {
                     ui.label(
                         egui::RichText::new("Closing clears Coffer’s in-memory preview buffer.")
                             .small()
@@ -96,7 +96,7 @@ pub fn show(app: &mut CofferApp, ctx: &egui::Context) {
                         .fill(theme::background())
                         .inner_margin(egui::Margin::symmetric(24, 12)),
                 )
-                .show(viewer_ctx, |ui| {
+                .show_inside(viewer_ui, |ui| {
                     egui::Frame::new()
                         .fill(theme::surface())
                         .stroke(egui::Stroke::new(1.0_f32, theme::border()))

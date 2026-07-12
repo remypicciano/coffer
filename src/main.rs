@@ -1,7 +1,10 @@
 mod app;
+mod coffer;
 mod ui;
 
 fn main() {
+    init_logging();
+    tracing::info!("Coffer starting");
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([1200.0, 820.0])
@@ -11,7 +14,7 @@ fn main() {
         ..Default::default()
     };
 
-    eframe::run_native(
+    let result = eframe::run_native(
         "Coffer",
         options,
         Box::new(|cc| {
@@ -20,7 +23,7 @@ fn main() {
 
             ui::theme::apply_visuals(ctx, true);
 
-            let mut style = (*ctx.style()).clone();
+            let mut style = (*ctx.global_style()).clone();
 
             style.spacing.item_spacing = egui::Vec2::new(10.0, 10.0);
 
@@ -39,10 +42,27 @@ fn main() {
                 egui::FontId::new(12.0, egui::FontFamily::Proportional),
             );
 
-            ctx.set_style(style);
+            ctx.set_global_style(style);
 
             Ok(Box::new(app::CofferApp::default()))
         }),
-    )
-    .unwrap();
+    );
+    match result {
+        Ok(()) => tracing::info!("Coffer closed normally"),
+        Err(error) => {
+            tracing::error!(error = %error, "Coffer stopped unexpectedly");
+            std::process::exit(1);
+        }
+    }
+}
+
+fn init_logging() {
+    use tracing_subscriber::EnvFilter;
+    let filter =
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("coffer=info"));
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(filter)
+        .with_target(false)
+        .with_ansi(false)
+        .try_init();
 }
