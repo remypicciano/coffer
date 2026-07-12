@@ -1,8 +1,6 @@
 use eframe::egui;
 
-use crate::app::{
-    CofferApp, NoticeKind, OpenStage, ProtectKeySource, ProtectStage, ThemeMode, Workflow,
-};
+use crate::app::{CofferApp, NoticeKind, OpenStage, ProtectStage, ThemeMode, Workflow};
 use crate::ui::{theme, widgets};
 
 pub fn show_splash(app: &mut CofferApp, ui: &mut egui::Ui) {
@@ -480,87 +478,14 @@ fn protect_select(app: &mut CofferApp, ui: &mut egui::Ui) {
                 return;
             }
             ui.add_space(26.0);
-            ui.heading(
-                egui::RichText::new("Unlock key")
-                    .size(20.0)
-                    .strong()
-                    .color(theme::text_primary()),
+            inline_notice(
+                ui,
+                "Fresh key for this file",
+                "Coffer will create a new random .cofferkey. Every protected file receives its own key so one lost or exposed key cannot unlock your other files.",
+                theme::primary(),
             );
-            ui.add_space(8.0);
-            ui.label(
-                egui::RichText::new("Use a unique key for stronger separation between files.")
-                    .color(theme::text_secondary()),
-            );
-            ui.add_space(16.0);
-            key_choice(app, ui);
         }
     }
-}
-
-fn key_choice(app: &mut CofferApp, ui: &mut egui::Ui) {
-    ui.horizontal(|ui| {
-        let new_selected = app.protect_key_source == ProtectKeySource::GenerateNew;
-        if selection_button(ui, "Create new key", new_selected).clicked() && !new_selected {
-            app.set_protect_key_source(ProtectKeySource::GenerateNew);
-        }
-        let existing_selected = app.protect_key_source == ProtectKeySource::Existing;
-        if selection_button(ui, "Use existing key", existing_selected).clicked()
-            && !existing_selected
-        {
-            app.set_protect_key_source(ProtectKeySource::Existing);
-        }
-    });
-
-    if app.protect_key_source == ProtectKeySource::Existing {
-        ui.add_space(16.0);
-        match app.protect_key_file.as_ref() {
-            Some(file) => {
-                if widgets::file_card(ui, file) {
-                    app.clear_protect_key();
-                }
-            }
-            None => {
-                let response = widgets::drop_zone(
-                    ui,
-                    "Drop a Coffer key",
-                    "The key will be validated before protection.",
-                    "browse",
-                );
-                if response.clicked() {
-                    app.select_protect_key();
-                }
-                if app.scroll_to_protect_key {
-                    ui.scroll_to_rect(response.rect, Some(egui::Align::Center));
-                    app.scroll_to_protect_key = false;
-                }
-            }
-        }
-    }
-}
-
-fn selection_button(ui: &mut egui::Ui, label: &str, selected: bool) -> egui::Response {
-    ui.add_sized(
-        [176.0, 44.0],
-        egui::Button::new(egui::RichText::new(label).strong().color(if selected {
-            theme::primary()
-        } else {
-            theme::text_secondary()
-        }))
-        .fill(if selected {
-            theme::primary().gamma_multiply(0.10)
-        } else {
-            theme::surface()
-        })
-        .stroke(egui::Stroke::new(
-            1.0_f32,
-            if selected {
-                theme::primary()
-            } else {
-                theme::border()
-            },
-        ))
-        .corner_radius(8.0),
-    )
 }
 
 fn protect_review(app: &mut CofferApp, ui: &mut egui::Ui) {
@@ -586,15 +511,12 @@ fn protect_review(app: &mut CofferApp, ui: &mut egui::Ui) {
     }
     app.refresh_planned_outputs();
     ui.add_space(18.0);
-    let key_copy = match app.protect_key_source {
-        ProtectKeySource::GenerateNew => {
-            "A new key file will be saved beside the protected copy. Keep them separate after saving."
-        }
-        ProtectKeySource::Existing => {
-            "The selected key will unlock this file. No new key file will be created."
-        }
-    };
-    inline_notice(ui, "Key", key_copy, theme::primary());
+    inline_notice(
+        ui,
+        "New unlock key",
+        "A unique .cofferkey will be saved beside the protected copy. Move it somewhere separate after saving.",
+        theme::primary(),
+    );
 }
 
 fn open_page(app: &mut CofferApp, ui: &mut egui::Ui) {

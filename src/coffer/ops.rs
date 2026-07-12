@@ -15,14 +15,13 @@ use super::{
 pub struct ProtectRequest<'a> {
     pub source: &'a Path,
     pub container_output: &'a Path,
-    pub generated_key_output: Option<&'a Path>,
-    pub existing_key: Option<&'a Path>,
+    pub key_output: &'a Path,
     pub cancelled: Option<&'a AtomicBool>,
 }
 
 pub struct ProtectResult {
     pub container: PathBuf,
-    pub key: Option<PathBuf>,
+    pub key: PathBuf,
 }
 
 pub struct RestoreRequest<'a> {
@@ -52,19 +51,13 @@ pub fn protect_file(request: ProtectRequest<'_>) -> Result<ProtectResult, Coffer
 }
 
 fn protect_file_inner(request: ProtectRequest<'_>) -> Result<ProtectResult, CofferError> {
-    if request.generated_key_output.is_some() == request.existing_key.is_some() {
-        tracing::warn!(operation = "protect", "invalid key source configuration");
-        return Err(CofferError::InvalidKey);
-    }
-    if request.generated_key_output == Some(request.container_output) {
+    if request.key_output == request.container_output {
         return Err(CofferError::OutputExists(
             request.container_output.to_path_buf(),
         ));
     }
     ensure_absent(request.container_output)?;
-    if let Some(path) = request.generated_key_output {
-        ensure_absent(path)?;
-    }
+    ensure_absent(request.key_output)?;
     let source_name = request
         .source
         .file_name()
@@ -74,47 +67,27 @@ fn protect_file_inner(request: ProtectRequest<'_>) -> Result<ProtectResult, Coff
     let plaintext = Zeroizing::new(fs::read(request.source).map_err(CofferError::ReadFailed)?);
     check_cancelled(request.cancelled)?;
 
-    let generated_key;
-    let key = if let Some(path) = request.existing_key {
-        let bytes = Zeroizing::new(fs::read(path).map_err(CofferError::ReadFailed)?);
-        key::parse(&bytes)?
-    } else {
-        generated_key = SecretKey::generate()?;
-        generated_key
-    };
+    let key = SecretKey::generate()?;
     let container = format::encrypt(source_name, &plaintext, &key)?;
     check_cancelled(request.cancelled)?;
     let mut container_temp = TemporaryOutput::create(request.container_output, false)?;
     container_temp.write_all(&container)?;
 
-    let mut key_temp = if let Some(path) = request.generated_key_output {
-        let mut temp = TemporaryOutput::create(path, true)?;
-        let encoded = key::encode(&key);
-        temp.write_all(&encoded)?;
-        Some(temp)
-    } else {
-        None
-    };
+    let mut key_temp = TemporaryOutput::create(request.key_output, true)?;
+    let encoded = key::encode(&key);
+    key_temp.write_all(&encoded)?;
 
     check_cancelled(request.cancelled)?;
 
-    let committed_key = if let Some(temp) = key_temp.take() {
-        Some(temp.commit()?)
-    } else {
-        None
-    };
+    let committed_key = key_temp.commit()?;
     if let Err(error) = check_cancelled(request.cancelled) {
-        if let Some(path) = committed_key.as_ref() {
-            let _ = fs::remove_file(path);
-        }
+        let _ = fs::remove_file(&committed_key);
         return Err(error);
     }
     let committed_container = match container_temp.commit() {
         Ok(path) => path,
         Err(error) => {
-            if let Some(path) = committed_key.as_ref() {
-                let _ = fs::remove_file(path);
-            }
+            let _ = fs::remove_file(&committed_key);
             return Err(error);
         }
     };
@@ -266,8 +239,7 @@ mod tests {
         protect_file(ProtectRequest {
             source: &source,
             container_output: &container,
-            generated_key_output: Some(&key),
-            existing_key: None,
+            key_output: &key,
             cancelled: None,
         })
         .unwrap();
@@ -306,8 +278,7 @@ mod tests {
         protect_file(ProtectRequest {
             source: &source,
             container_output: &container,
-            generated_key_output: Some(&key),
-            existing_key: None,
+            key_output: &key,
             cancelled: None,
         })
         .unwrap();
@@ -330,16 +301,14 @@ mod tests {
         protect_file(ProtectRequest {
             source: &source,
             container_output: &container,
-            generated_key_output: Some(&key),
-            existing_key: None,
+            key_output: &key,
             cancelled: None,
         })
         .unwrap();
         protect_file(ProtectRequest {
             source: &source,
             container_output: &wrong_container,
-            generated_key_output: Some(&wrong_key),
-            existing_key: None,
+            key_output: &wrong_key,
             cancelled: None,
         })
         .unwrap();
@@ -375,8 +344,7 @@ mod tests {
             protect_file(ProtectRequest {
                 source: &source,
                 container_output: &container,
-                generated_key_output: Some(&key),
-                existing_key: None,
+                key_output: &key,
                 cancelled: Some(&cancelled),
             }),
             Err(CofferError::Cancelled)
@@ -410,41 +378,42 @@ mod tests {
     }
 
     #[test]
-    fn existing_key_can_protect_another_container_without_being_copied() {
+    fn every_protection_uses_a_distinct_random_key() {
         let directory = tempfile::tempdir().unwrap();
-        let first_source = directory.path().join("first.txt");
+        let source = directory.path().join("source.txt");
         let first_container = directory.path().join("first.coffer");
-        let key = directory.path().join("shared.cofferkey");
-        let second_source = directory.path().join("second.txt");
+        let first_key = directory.path().join("first.cofferkey");
         let second_container = directory.path().join("second.coffer");
-        let restored = directory.path().join("second-restored.txt");
-        fs::write(&first_source, b"first").unwrap();
-        fs::write(&second_source, b"second").unwrap();
+        let second_key = directory.path().join("second.cofferkey");
+        let invalid_output = directory.path().join("must-not-exist.txt");
+        fs::write(&source, b"same source").unwrap();
 
-        protect_file(ProtectRequest {
-            source: &first_source,
-            container_output: &first_container,
-            generated_key_output: Some(&key),
-            existing_key: None,
-            cancelled: None,
-        })
-        .unwrap();
-        let result = protect_file(ProtectRequest {
-            source: &second_source,
-            container_output: &second_container,
-            generated_key_output: None,
-            existing_key: Some(&key),
-            cancelled: None,
-        })
-        .unwrap();
-        assert!(result.key.is_none());
-        restore_file(RestoreRequest {
-            container: &second_container,
-            key: &key,
-            output: &restored,
-            cancelled: None,
-        })
-        .unwrap();
-        assert_eq!(fs::read(restored).unwrap(), b"second");
+        for (container, key) in [
+            (&first_container, &first_key),
+            (&second_container, &second_key),
+        ] {
+            protect_file(ProtectRequest {
+                source: &source,
+                container_output: container,
+                key_output: key,
+                cancelled: None,
+            })
+            .unwrap();
+        }
+
+        assert_ne!(
+            fs::read(&first_key).unwrap(),
+            fs::read(&second_key).unwrap()
+        );
+        assert!(matches!(
+            restore_file(RestoreRequest {
+                container: &second_container,
+                key: &first_key,
+                output: &invalid_output,
+                cancelled: None,
+            }),
+            Err(CofferError::AuthenticationFailed)
+        ));
+        assert!(!invalid_output.exists());
     }
 }
