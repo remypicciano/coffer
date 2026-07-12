@@ -156,11 +156,17 @@ enum OperationOutcome {
     Restored(Result<RestoreResult, CofferError>),
 }
 
-struct OperationControl(Arc<AtomicBool>);
+struct OperationControl {
+    cancelled: Arc<AtomicBool>,
+    worker: Option<std::thread::JoinHandle<()>>,
+}
 
 impl Drop for OperationControl {
     fn drop(&mut self) {
-        self.0.store(true, Ordering::Relaxed);
+        self.cancelled.store(true, Ordering::Relaxed);
+        if let Some(worker) = self.worker.take() {
+            let _ = worker.join();
+        }
     }
 }
 
@@ -493,7 +499,7 @@ impl CofferApp {
         let cancelled = Arc::new(AtomicBool::new(false));
         let worker_cancelled = Arc::clone(&cancelled);
         let (sender, receiver) = mpsc::channel();
-        std::thread::spawn(move || {
+        let worker = std::thread::spawn(move || {
             let result = protect_file(ProtectRequest {
                 source: &source,
                 container_output: &container_output,
@@ -505,7 +511,10 @@ impl CofferApp {
         });
 
         self.operation_receiver = Some(receiver);
-        self.operation_cancel = Some(OperationControl(cancelled));
+        self.operation_cancel = Some(OperationControl {
+            cancelled,
+            worker: Some(worker),
+        });
         self.protect_stage = ProtectStage::Processing;
         self.progress = 0.0;
         self.processing_started_at = None;
@@ -536,7 +545,7 @@ impl CofferApp {
         let cancelled = Arc::new(AtomicBool::new(false));
         let worker_cancelled = Arc::clone(&cancelled);
         let (sender, receiver) = mpsc::channel();
-        std::thread::spawn(move || {
+        let worker = std::thread::spawn(move || {
             let result = restore_file(RestoreRequest {
                 container: &container,
                 key: &key,
@@ -547,7 +556,10 @@ impl CofferApp {
         });
 
         self.operation_receiver = Some(receiver);
-        self.operation_cancel = Some(OperationControl(cancelled));
+        self.operation_cancel = Some(OperationControl {
+            cancelled,
+            worker: Some(worker),
+        });
         self.open_stage = OpenStage::Processing;
         self.progress = 0.0;
         self.processing_started_at = None;
