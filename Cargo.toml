@@ -4,7 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-aes-gcm = "0.10"
+# Feature-unifies with aes-gcm's backend so expanded AES round keys are wiped on drop.
+aes = { version = "0.8", features = ["zeroize"] }
+aes-gcm = { version = "0.10", features = ["zeroize"] }
 eframe = { version = "0.34", default-features = false, features = [
     "accesskit",
     "default_fonts",
