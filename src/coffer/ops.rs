@@ -384,4 +384,67 @@ mod tests {
         assert!(!container.exists());
         assert!(!key.exists());
     }
+
+    #[test]
+    fn temporary_output_drop_and_commit_race_leave_no_partial_data() {
+        let directory = tempfile::tempdir().unwrap();
+        let output = directory.path().join("output.bin");
+        let temporary_path = {
+            let mut temporary = TemporaryOutput::create(&output, false).unwrap();
+            temporary.write_all(b"incomplete").unwrap();
+            temporary.temporary_path.clone()
+        };
+        assert!(!temporary_path.exists());
+        assert!(!output.exists());
+
+        let mut temporary = TemporaryOutput::create(&output, false).unwrap();
+        temporary.write_all(b"new data").unwrap();
+        let reserved_temp = temporary.temporary_path.clone();
+        fs::write(&output, b"existing data").unwrap();
+        assert!(matches!(
+            temporary.commit(),
+            Err(CofferError::OutputExists(_))
+        ));
+        assert_eq!(fs::read(&output).unwrap(), b"existing data");
+        assert!(!reserved_temp.exists());
+    }
+
+    #[test]
+    fn existing_key_can_protect_another_container_without_being_copied() {
+        let directory = tempfile::tempdir().unwrap();
+        let first_source = directory.path().join("first.txt");
+        let first_container = directory.path().join("first.coffer");
+        let key = directory.path().join("shared.cofferkey");
+        let second_source = directory.path().join("second.txt");
+        let second_container = directory.path().join("second.coffer");
+        let restored = directory.path().join("second-restored.txt");
+        fs::write(&first_source, b"first").unwrap();
+        fs::write(&second_source, b"second").unwrap();
+
+        protect_file(ProtectRequest {
+            source: &first_source,
+            container_output: &first_container,
+            generated_key_output: Some(&key),
+            existing_key: None,
+            cancelled: None,
+        })
+        .unwrap();
+        let result = protect_file(ProtectRequest {
+            source: &second_source,
+            container_output: &second_container,
+            generated_key_output: None,
+            existing_key: Some(&key),
+            cancelled: None,
+        })
+        .unwrap();
+        assert!(result.key.is_none());
+        restore_file(RestoreRequest {
+            container: &second_container,
+            key: &key,
+            output: &restored,
+            cancelled: None,
+        })
+        .unwrap();
+        assert_eq!(fs::read(restored).unwrap(), b"second");
+    }
 }
