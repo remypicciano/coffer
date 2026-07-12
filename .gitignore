@@ -1,6 +1,10 @@
 # Rust
 /target/
 
+# Python recovery-tool cache
+__pycache__/
+*.py[cod]
+
 # Local release artifacts
 /dist/
 

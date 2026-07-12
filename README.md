@@ -45,9 +45,24 @@ rustup target add x86_64-pc-windows-msvc
 cargo build --release --target x86_64-pc-windows-msvc
 ```
 
+## Linux x64 build
+
+On Debian, Ubuntu, or Kali Linux:
+
+```sh
+sudo apt update
+sudo apt install -y build-essential pkg-config libx11-dev libxkbcommon-dev
+cargo build --locked --release
+./target/release/coffer
+```
+
+The repository's **Linux build** GitHub Actions workflow also produces a downloadable `coffer-linux-x86_64` archive. It can be started manually from the repository's **Actions** tab.
+
 ## Project documentation
 
 - [Container format proposal](docs/coffer-format-v1.md)
+- [Complete feature catalog](docs/features.md)
+- [Cross-platform recovery and decryption](docs/recovery.md)
 - [Product roadmap](docs/roadmap.md)
 - [Key-carrier safety](docs/key-carrier-safety.md)
 - [Security audit notes](docs/security-audit.md)

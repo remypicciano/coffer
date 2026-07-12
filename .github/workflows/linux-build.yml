@@ -1,0 +1,64 @@
+name: Linux build
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build-linux-x86_64:
+    name: Build Linux x86_64
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes build-essential pkg-config libx11-dev libxkbcommon-dev
+
+      - name: Install stable Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache Rust build data
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run tests
+        run: cargo test --locked
+
+      - name: Run Clippy
+        run: cargo clippy --locked --all-targets --all-features -- -D warnings
+
+      - name: Build release binary
+        run: cargo build --locked --release
+
+      - name: Package binary
+        run: |
+          mkdir -p dist
+          cp target/release/coffer dist/coffer-linux-x86_64
+          chmod 755 dist/coffer-linux-x86_64
+          tar -C dist -czf dist/coffer-linux-x86_64.tar.gz coffer-linux-x86_64
+          sha256sum dist/coffer-linux-x86_64.tar.gz > dist/coffer-linux-x86_64.tar.gz.sha256
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coffer-linux-x86_64
+          path: |
+            dist/coffer-linux-x86_64.tar.gz
+            dist/coffer-linux-x86_64.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 14
