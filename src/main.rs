@@ -1,8 +1,4 @@
 mod app;
-mod crypto;
-mod error;
-mod key;
-mod paths;
 mod ui;
 
 fn main() {
@@ -22,37 +18,26 @@ fn main() {
             let ctx = &cc.egui_ctx;
             egui_extras::install_image_loaders(ctx);
 
-            let mut visuals = egui::Visuals::dark();
-
-            visuals.panel_fill = ui::theme::BACKGROUND;
-
-            visuals.window_fill = ui::theme::SURFACE;
-
-            visuals.extreme_bg_color = ui::theme::BACKGROUND;
-
-            visuals.faint_bg_color = ui::theme::SURFACE_RAISED;
-
-            visuals.selection.bg_fill = ui::theme::PRIMARY;
-
-            visuals.selection.stroke.color = egui::Color32::WHITE;
-
-            visuals.widgets.inactive.bg_fill = ui::theme::SURFACE_RAISED;
-
-            visuals.widgets.inactive.weak_bg_fill = ui::theme::SURFACE_RAISED;
-
-            visuals.widgets.hovered.bg_fill = ui::theme::PRIMARY_HOVER;
-
-            visuals.widgets.active.bg_fill = ui::theme::PRIMARY;
-
-            visuals.widgets.noninteractive.bg_fill = ui::theme::SURFACE;
-
-            ctx.set_visuals(visuals);
+            ui::theme::apply_visuals(ctx, true);
 
             let mut style = (*ctx.style()).clone();
 
             style.spacing.item_spacing = egui::Vec2::new(10.0, 10.0);
 
             style.spacing.button_padding = egui::Vec2::new(16.0, 10.0);
+
+            style.text_styles.insert(
+                egui::TextStyle::Body,
+                egui::FontId::new(15.0, egui::FontFamily::Proportional),
+            );
+            style.text_styles.insert(
+                egui::TextStyle::Button,
+                egui::FontId::new(14.0, egui::FontFamily::Proportional),
+            );
+            style.text_styles.insert(
+                egui::TextStyle::Small,
+                egui::FontId::new(12.0, egui::FontFamily::Proportional),
+            );
 
             ctx.set_style(style);
 

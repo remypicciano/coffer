@@ -1,6 +1,9 @@
 # Rust
 /target/
 
+# Local release artifacts
+/dist/
+
 # macOS
 .DS_Store
 
@@ -21,3 +24,26 @@
 
 # Temporary files
 *.tmp
+
+# Local AI assistants and agent configuration
+/.codex/
+/.agents/
+/.ai/
+/.claude/
+/.cursor/
+/.continue/
+/.gemini/
+/.windsurf/
+/.aider*
+/AGENTS.md
+/CLAUDE.md
+/GEMINI.md
+/.github/agents/
+/.github/prompts/
+/.github/copilot-instructions.md
+
+# Local reusable skills
+**/SKILL.md
+/.skills/
+/skills/
+/skills-lock.json

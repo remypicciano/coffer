@@ -23,9 +23,9 @@ fn show_error_dialog(app: &mut CofferApp, ctx: &egui::Context) {
         .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
         .frame(
             egui::Frame::window(&ctx.style())
-                .fill(theme::SURFACE)
-                .stroke(egui::Stroke::new(1.0_f32, theme::BORDER))
-                .corner_radius(egui::CornerRadius::same(18))
+                .fill(theme::surface())
+                .stroke(egui::Stroke::new(1.0_f32, theme::border()))
+                .corner_radius(egui::CornerRadius::same(8))
                 .inner_margin(24.0),
         )
         .show(ctx, |ui| {
@@ -34,23 +34,23 @@ fn show_error_dialog(app: &mut CofferApp, ctx: &egui::Context) {
                     egui::RichText::new("!")
                         .size(38.0)
                         .strong()
-                        .color(theme::DANGER),
+                        .color(theme::danger()),
                 );
 
                 ui.add_space(10.0);
 
-                ui.heading(egui::RichText::new("Action required").color(theme::TEXT_PRIMARY));
+                ui.heading(egui::RichText::new("Action required").color(theme::text_primary()));
 
                 ui.add_space(8.0);
 
-                ui.label(egui::RichText::new(&app.error_message).color(theme::TEXT_SECONDARY));
+                ui.label(egui::RichText::new(&app.error_message).color(theme::text_secondary()));
 
                 ui.add_space(22.0);
 
                 if ui
                     .add_sized(
                         [ui.available_width(), 42.0],
-                        egui::Button::new("Close").corner_radius(egui::CornerRadius::same(11)),
+                        egui::Button::new("Close").corner_radius(egui::CornerRadius::same(8)),
                     )
                     .clicked()
                 {

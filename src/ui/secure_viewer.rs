@@ -49,7 +49,7 @@ pub fn show(app: &mut CofferApp, ctx: &egui::Context) {
                 .resizable(false)
                 .frame(
                     egui::Frame::new()
-                        .fill(theme::BACKGROUND)
+                        .fill(theme::background())
                         .inner_margin(egui::Margin::symmetric(24, 20)),
                 )
                 .show(viewer_ctx, |ui| {
@@ -61,14 +61,14 @@ pub fn show(app: &mut CofferApp, ctx: &egui::Context) {
                 .exact_height(112.0)
                 .frame(
                     egui::Frame::new()
-                        .fill(theme::BACKGROUND)
+                        .fill(theme::background())
                         .inner_margin(egui::Margin::symmetric(24, 14)),
                 )
                 .show(viewer_ctx, |ui| {
                     ui.label(
                         egui::RichText::new("Closing clears Coffer’s in-memory preview buffer.")
                             .small()
-                            .color(theme::TEXT_SECONDARY),
+                            .color(theme::text_secondary()),
                     );
 
                     ui.add_space(10.0);
@@ -79,10 +79,10 @@ pub fn show(app: &mut CofferApp, ctx: &egui::Context) {
                             egui::Button::new(
                                 egui::RichText::new("Close preview")
                                     .strong()
-                                    .color(egui::Color32::WHITE),
+                                    .color(theme::on_primary()),
                             )
-                            .fill(theme::DANGER)
-                            .corner_radius(egui::CornerRadius::same(11)),
+                            .fill(theme::danger())
+                            .corner_radius(egui::CornerRadius::same(8)),
                         )
                         .clicked()
                     {
@@ -93,19 +93,22 @@ pub fn show(app: &mut CofferApp, ctx: &egui::Context) {
             egui::CentralPanel::default()
                 .frame(
                     egui::Frame::new()
-                        .fill(theme::BACKGROUND)
+                        .fill(theme::background())
                         .inner_margin(egui::Margin::symmetric(24, 12)),
                 )
                 .show(viewer_ctx, |ui| {
                     egui::Frame::new()
-                        .fill(theme::SURFACE)
-                        .stroke(egui::Stroke::new(1.0_f32, theme::BORDER))
-                        .corner_radius(egui::CornerRadius::same(16))
+                        .fill(theme::surface())
+                        .stroke(egui::Stroke::new(1.0_f32, theme::border()))
+                        .corner_radius(egui::CornerRadius::same(8))
                         .inner_margin(20.0)
                         .show(ui, |ui| {
                             ui.set_min_size(ui.available_size());
 
                             egui::ScrollArea::vertical()
+                                .scroll_bar_visibility(
+                                    egui::scroll_area::ScrollBarVisibility::AlwaysHidden,
+                                )
                                 .auto_shrink([false, false])
                                 .show(ui, |ui| match app.decrypted_text.as_deref() {
                                     Some(text) => {
@@ -114,7 +117,7 @@ pub fn show(app: &mut CofferApp, ctx: &egui::Context) {
                                                 egui::RichText::new(text)
                                                     .monospace()
                                                     .size(15.0)
-                                                    .color(theme::TEXT_PRIMARY),
+                                                    .color(theme::text_primary()),
                                             )
                                             .wrap(),
                                         );
@@ -144,15 +147,15 @@ pub fn show(app: &mut CofferApp, ctx: &egui::Context) {
 fn viewer_header(ui: &mut egui::Ui) {
     ui.horizontal(|ui| {
         egui::Frame::new()
-            .fill(theme::PRIMARY)
-            .corner_radius(egui::CornerRadius::same(12))
+            .fill(theme::primary())
+            .corner_radius(egui::CornerRadius::same(8))
             .inner_margin(10.0)
             .show(ui, |ui| {
                 ui.label(
                     egui::RichText::new("C")
                         .size(20.0)
                         .strong()
-                        .color(egui::Color32::WHITE),
+                        .color(theme::on_primary()),
                 );
             });
 
@@ -163,13 +166,13 @@ fn viewer_header(ui: &mut egui::Ui) {
                 egui::RichText::new("Secure Viewer")
                     .size(22.0)
                     .strong()
-                    .color(theme::TEXT_PRIMARY),
+                    .color(theme::text_primary()),
             );
 
             ui.label(
                 egui::RichText::new("Read-only sample preview")
                     .small()
-                    .color(theme::TEXT_SECONDARY),
+                    .color(theme::text_secondary()),
             );
         });
 
@@ -181,18 +184,18 @@ fn viewer_header(ui: &mut egui::Ui) {
 
 fn status_chip(ui: &mut egui::Ui) {
     egui::Frame::new()
-        .fill(theme::SURFACE_RAISED)
-        .corner_radius(egui::CornerRadius::same(18))
+        .fill(theme::surface_raised())
+        .corner_radius(egui::CornerRadius::same(8))
         .inner_margin(egui::Margin::symmetric(11, 6))
         .show(ui, |ui| {
             ui.horizontal(|ui| {
-                ui.colored_label(theme::WARNING, "●");
+                ui.colored_label(theme::warning(), "!");
 
                 ui.label(
                     egui::RichText::new("Temporary preview")
                         .small()
                         .strong()
-                        .color(theme::TEXT_PRIMARY),
+                        .color(theme::text_primary()),
                 );
             });
         });
@@ -202,13 +205,13 @@ fn empty_viewer(ui: &mut egui::Ui) {
     ui.vertical_centered(|ui| {
         ui.add_space(50.0);
 
-        ui.heading(egui::RichText::new("Nothing to display").color(theme::TEXT_PRIMARY));
+        ui.heading(egui::RichText::new("Nothing to display").color(theme::text_primary()));
 
         ui.add_space(8.0);
 
         ui.label(
             egui::RichText::new("The decrypted session no longer contains readable text.")
-                .color(theme::TEXT_SECONDARY),
+                .color(theme::text_secondary()),
         );
     });
 }
