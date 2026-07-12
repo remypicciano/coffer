@@ -4,16 +4,16 @@ This roadmap separates interface work from cryptographic implementation. Securit
 
 ## Milestone 1: Desktop interface
 
-Status: in progress
+Status: implemented for v1
 
 - Complete responsive Protect and Open workflows.
 - Maintain clear light and dark themes, keyboard navigation, and accessible contrast.
 - Finalize native file selection, destination review, progress, cancellation, and completion states.
-- Keep all file operations simulated until the container implementation is ready.
+- Run protection and restoration on background workers connected to the verified v1 core.
 
 ## Milestone 2: Coffer format v1
 
-Status: specified, not implemented
+Status: implemented
 
 - Implement the versioned `.coffer` container and separate key format defined in [coffer-format-v1.md](coffer-format-v1.md).
 - Encrypt content and authenticated filename metadata with AES-256-GCM.
@@ -26,7 +26,7 @@ Status: specified, not implemented
 
 ## Milestone 3: Coffer v1 release
 
-Status: proposed
+Status: implemented for v1
 
 - Keep v1 deliberately small: one protected file, one separate key, local processing, and explicit destination selection.
 - Replace the generic `.key` extension with `.cofferkey` while retaining a versioned binary format.
@@ -56,6 +56,7 @@ Key carrier mode allows an unchanged ordinary file, such as a private photograph
 - Store only public KDF parameters, salt, wrapping nonce, and the authenticated wrapped data key in the container; never store a derived key or passphrase verifier.
 - Keep the carrier byte-for-byte unchanged and never modify its pixels, metadata, timestamps, or filesystem attributes.
 - Clearly warn that editing, recompressing, cloud optimization, or line-ending conversion will invalidate a carrier.
+- Explain in plain language that images and other carriers must be sent with **Attach file** or **Send as document**. Inline image and photo-sharing modes commonly compress or rewrite files and will not preserve a working carrier.
 - Explain that carrier-only mode favors inconspicuous transport and convenience, while the optional passphrase prevents the carrier from being sufficient by itself.
 - Provide local carrier fingerprint verification without writing identifying information into the carrier.
 - Define this as a new container version rather than adding ambiguous behavior to v1.
