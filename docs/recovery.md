@@ -2,6 +2,8 @@
 
 This document is the long-term recovery path for Coffer v1 data if the desktop application is unavailable or discontinued. Keep the `.coffer` container and its matching `.cofferkey` file separate, and retain a copy of this repository or the published format specification.
 
+For ordinary use, prefer the native archives attached to the [v1.0.0 release](https://github.com/remypicciano/coffer/releases/tag/v1.0.0). Verify the accompanying SHA-256 checksum. The initial archives are not platform-code-signed.
+
 The v1 format is platform-independent. A container created on macOS can be decrypted on Windows or Linux, and the reverse is also true. Coffer uses standard AES-256-GCM; no device identifier, operating-system credential, online account, server, or Coffer-controlled service is required.
 
 ## Preferred recovery: build Coffer from source

@@ -1,6 +1,6 @@
 # Coffer feature catalog
 
-Last updated: July 12, 2026
+Last updated: July 13, 2026
 
 Coffer is a local-first desktop application for protecting individual files with authenticated encryption and a separate unlock key. Version 1 is intentionally small and auditable. Advanced carrier files, passphrases, sanitization, and cloud-related concepts are reserved for a future version of the container format.
 
@@ -119,6 +119,8 @@ Coffer is a local-first desktop application for protecting individual files with
 - Uses a locked Rust dependency graph and RustSec advisory scanning.
 - Documents narrow build-time advisory exceptions separately; they do not cover runtime file parsing.
 - Keeps generated builds, release artifacts, local assistant configuration, encrypted containers, keys, environment files, logs, and temporary files out of Git.
+- Runs recurring full-history secret scans, RustSec advisory checks, dependency license/source policy, and pull-request dependency review.
+- Publishes native archives for Windows x86_64, Linux x86_64 and ARM64, and macOS Intel and Apple Silicon.
 
 ## Version 1: deliberate limitations
 

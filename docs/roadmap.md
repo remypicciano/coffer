@@ -4,7 +4,7 @@ This roadmap separates interface work from cryptographic implementation. Securit
 
 ## Milestone 1: Desktop interface
 
-Status: implemented for v1
+Status: released in v1.0.0
 
 - Complete responsive Protect and Open workflows.
 - Maintain clear light and dark themes, keyboard navigation, and accessible contrast.
@@ -13,7 +13,7 @@ Status: implemented for v1
 
 ## Milestone 2: Coffer format v1
 
-Status: implemented
+Status: released in v1.0.0
 
 - Implement the versioned `.coffer` container and separate key format defined in [coffer-format-v1.md](coffer-format-v1.md).
 - Encrypt content and authenticated filename metadata with AES-256-GCM.
@@ -26,7 +26,7 @@ Status: implemented
 
 ## Milestone 3: Coffer v1 release
 
-Status: implemented for v1
+Status: released in v1.0.0
 
 - Keep v1 deliberately small: one protected file, one separate key, local processing, and explicit destination selection.
 - Replace the generic `.key` extension with `.cofferkey` while retaining a versioned binary format.

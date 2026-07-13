@@ -3,19 +3,9 @@ name: Security audit
 on:
   workflow_dispatch:
   pull_request:
-    paths:
-      - Cargo.lock
-      - Cargo.toml
-      - .cargo/audit.toml
-      - .github/workflows/security-audit.yml
   push:
     branches:
       - main
-    paths:
-      - Cargo.lock
-      - Cargo.toml
-      - .cargo/audit.toml
-      - .github/workflows/security-audit.yml
   schedule:
     - cron: "17 9 * * 1"
 
@@ -23,6 +13,22 @@ permissions:
   contents: read
 
 jobs:
+  secrets:
+    name: Full-history secret scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out complete history
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan Git history and working tree
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   rustsec:
     name: RustSec advisory scan
     runs-on: ubuntu-24.04
@@ -46,3 +52,32 @@ jobs:
 
       - name: Scan locked dependencies
         run: cargo audit
+
+  policy:
+    name: Dependency licenses and sources
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Check dependency policy
+        uses: EmbarkStudios/cargo-deny-action@bb137d7af7e4fb67e5f82a49c4fce4fad40782fe # v2
+        with:
+          command: check bans licenses sources
+
+  dependency-review:
+    name: Pull-request dependency review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Review dependency changes
+        uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4
+        with:
+          fail-on-severity: moderate

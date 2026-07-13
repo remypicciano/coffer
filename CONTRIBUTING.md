@@ -16,6 +16,8 @@ cargo fmt --all -- --check
 cargo test --locked
 cargo clippy --locked --all-targets --all-features -- -D warnings
 cargo audit
+cargo deny check bans licenses sources
+gitleaks git --redact .
 ```
 
 Use synthetic fixtures. New parsers and security boundaries need negative tests for truncation, corruption, unsupported versions, unreasonable lengths, unsafe paths, cancellation, and no-clobber behavior as applicable.
@@ -30,3 +32,5 @@ Keep commits intentional and describe:
 - documentation or migration requirements.
 
 Pull requests must not weaken authentication errors, overwrite protection, key separation, zeroization, or the offline security boundary without an explicit design review.
+
+All third-party GitHub Actions must be pinned to a reviewed full commit SHA. Do not commit generated executables; release artifacts are produced by GitHub Actions from reviewed commits.

@@ -1,0 +1,43 @@
+[graph]
+all-features = true
+
+[advisories]
+version = 2
+ignore = [
+    "RUSTSEC-2026-0194", # Build-time Wayland XML parser; input is bundled protocol XML.
+    "RUSTSEC-2026-0195", # Build-time Wayland XML parser; input is bundled protocol XML.
+]
+
+[licenses]
+version = 2
+confidence-threshold = 0.8
+allow = [
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "BSL-1.0",
+    "CDLA-Permissive-2.0",
+    "ISC",
+    "MIT",
+    "OFL-1.1",
+    "Unicode-3.0",
+    "Ubuntu-font-1.0",
+    "Zlib",
+]
+
+[[licenses.clarify]]
+name = "ring"
+expression = "ISC AND MIT AND OpenSSL"
+license-files = [
+    { path = "LICENSE", hash = 0xbd0eed23 },
+]
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+highlight = "all"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

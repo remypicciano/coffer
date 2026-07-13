@@ -39,18 +39,18 @@ Repeat the removal command for each path printed by `git ls-files`. This affects
 
 ## Preparing a GitHub change
 
-Feature work should be committed on a focused branch rather than directly on `main`. The current UI and workflow work belongs on:
+Feature work should be committed on a focused branch rather than directly on `main`. Name branches by purpose, for example:
 
 ```text
-ui/responsive-key-workflows
+feature/byte-progress
 ```
 
 Before publishing, review both the file list and the complete staged patch. Do not commit generated `target/` or `dist/` output, local assistant configuration, private test fixtures, real keys, plaintext samples, or `.coffer` containers.
 
-Recommended conventional commit message:
+Use conventional commit messages, for example:
 
 ```text
-feat(ui): refine responsive workflows and document key carriers
+feat(core): report authenticated byte progress
 ```
 
-The exact preparation and publication commands are listed in the handoff report. They are intentionally not automated by this repository.
+Every pull request must pass formatting, tests, strict Clippy, all platform builds, full-history secret scanning, RustSec, dependency policy, and dependency review where applicable.

@@ -2,6 +2,8 @@
 
 Coffer is a cross-platform desktop application for protecting local files with a separate unlock key. Its version-one backend uses the documented authenticated container format and performs protection and restoration locally.
 
+Version 1.0.0 is the first stable format release. Download archives for Windows, Linux, and macOS from [GitHub Releases](https://github.com/remypicciano/coffer/releases). Release archives include SHA-256 checksums; builds are currently unsigned, so verify the checksum and repository provenance before use.
+
 > **Carrier-file warning for the planned v2 feature:** an image or other file used as a key carrier must remain byte-for-byte identical. Send it with **Attach file** or **Send as document**. Do not paste it inline and do not use a chat application's normal photo-sharing button; those options commonly compress or rewrite the file, and the received copy will not unlock the container.
 
 ## Development
@@ -34,7 +36,7 @@ cp target/release/coffer dist/macos/Coffer.app/Contents/MacOS/coffer
 open dist/macos/Coffer.app
 ```
 
-The local `dist/` directory is intentionally excluded from Git.
+The **macOS build** workflow publishes Intel and Apple Silicon archives. The local `dist/` directory is intentionally excluded from Git.
 
 ## Windows x64 build
 
@@ -73,3 +75,7 @@ The repository's **Linux build** GitHub Actions workflow produces downloadable `
 - [Support policy](SUPPORT.md)
 - [Contributing](CONTRIBUTING.md)
 - [Public repository readiness](docs/public-readiness.md)
+
+## Security and license
+
+Report vulnerabilities privately through [GitHub Security Advisories](https://github.com/remypicciano/coffer/security/advisories/new). Never attach real keys, private containers, or confidential plaintext to an issue. Coffer is available under the [MIT License](LICENSE).

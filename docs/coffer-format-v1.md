@@ -1,6 +1,6 @@
 # Coffer container and key format v1
 
-Status: implemented specification. The production core, filesystem operations, and UI integration follow this format. The deterministic compatibility fixture is enforced by the automated test suite.
+Status: stable as of Coffer 1.0.0. The production core, filesystem operations, and UI integration follow this format. The deterministic compatibility fixture is enforced by the automated test suite. Version 1 compatibility is frozen; incompatible changes require a new format version.
 
 All integers are unsigned and stored in big-endian byte order. Parsers must reject truncated input, inconsistent lengths, unsupported versions, and unsupported algorithms.
 

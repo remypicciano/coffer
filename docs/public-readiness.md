@@ -1,6 +1,6 @@
 # Public repository readiness
 
-Last reviewed: July 12, 2026
+Last reviewed: July 13, 2026
 
 ## Completed
 
@@ -13,15 +13,16 @@ Last reviewed: July 12, 2026
 - Dependabot monitors Cargo and GitHub Actions dependencies weekly.
 - Security, support, contribution, ownership, and issue-reporting policies are present.
 - Public bug forms explicitly prohibit keys and confidential data.
+- Repository visibility is public; secret scanning, push protection, Dependabot alerts and security updates, and private vulnerability reporting are enabled.
+- The project has an explicit MIT license.
+- The tracked splash image has no ancillary metadata, and empty icon placeholders were removed.
+- Windows x86_64, Linux x86_64 and ARM64, and macOS Intel and Apple Silicon artifacts build successfully.
 
-## Must be completed before visibility changes
+## Repository administration follow-up
 
-- Select and add an explicit software license.
 - Merge the reviewed release-readiness pull request into `main`.
 - Review and intentionally remove or retain every non-default remote branch.
-- Enable private vulnerability reporting after the repository becomes eligible.
 - Enable branch protection or a ruleset for `main`, requiring pull requests and passing Linux, Windows, and security checks.
-- Enable repository secret scanning and push protection; public repositories receive GitHub secret scanning automatically.
 - Confirm the public repository description, topics, homepage, and support destinations.
 
 ## Required before official production releases

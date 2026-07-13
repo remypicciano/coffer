@@ -2,7 +2,7 @@
 
 ## Dependency review
 
-Last reviewed: 2026-07-12
+Last reviewed: 2026-07-13
 
 The locked dependency graph is checked with:
 
@@ -20,6 +20,17 @@ The affected `quick-xml` release is a build dependency of `wayland-scanner`, rea
 The upstream `wayland-scanner` release currently constrains `quick-xml` to the affected `0.39` line, so Cargo cannot select the fixed `0.41` release. The exceptions must be removed as soon as the windowing dependency accepts the fixed parser. A dependency update must rerun `cargo audit`, all tests, and strict Clippy.
 
 These exceptions do not apply to a runtime parser and must not be broadened to cover unrelated advisories.
+
+## Recurring public-repository checks
+
+Every pull request and push to `main`, plus a weekly schedule, runs:
+
+- Gitleaks against the complete reachable Git history;
+- RustSec against the locked Cargo dependency graph;
+- cargo-deny policy for dependency licenses, registries, Git sources, and duplicate-version visibility;
+- GitHub dependency review for newly introduced vulnerable packages.
+
+GitHub secret scanning and push protection are enabled, as are Dependabot vulnerability alerts and automated security updates. Local release review must still scan the full history and inspect tracked binary metadata.
 
 ## Logging boundary
 

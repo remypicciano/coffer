@@ -9,6 +9,8 @@ on:
 
 permissions:
   contents: read
+  id-token: write
+  attestations: write
 
 jobs:
   build-windows-x86_64:
@@ -51,6 +53,12 @@ jobs:
           Compress-Archive -Path dist/coffer-windows-x86_64.exe -DestinationPath dist/coffer-windows-x86_64.zip
           $hash = (Get-FileHash dist/coffer-windows-x86_64.zip -Algorithm SHA256).Hash.ToLower()
           "$hash  coffer-windows-x86_64.zip" | Set-Content -NoNewline dist/coffer-windows-x86_64.zip.sha256
+
+      - name: Attest Windows archive provenance
+        if: github.event_name != 'pull_request'
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+        with:
+          subject-path: dist/coffer-windows-x86_64.zip
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
