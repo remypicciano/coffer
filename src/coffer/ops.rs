@@ -154,6 +154,9 @@ struct TemporaryOutput {
 
 impl TemporaryOutput {
     fn create(final_path: &Path, owner_only: bool) -> Result<Self, CofferError> {
+        #[cfg(not(unix))]
+        let _ = owner_only;
+
         ensure_absent(final_path)?;
         let parent = final_path.parent().ok_or_else(|| {
             CofferError::WriteFailed(io::Error::new(
