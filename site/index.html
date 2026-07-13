@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#131713">
+    <meta name="description" content="Coffer is a local-first desktop application for authenticated file encryption on macOS, Windows, and Linux.">
+    <meta property="og:title" content="Coffer — protect a file, keep the key apart">
+    <meta property="og:description" content="Auditable, local-first file protection with a documented open format and no recovery backdoor.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://remypicciano.github.io/coffer/">
+    <title>Coffer — local-first file protection</title>
+    <link rel="canonical" href="https://remypicciano.github.io/coffer/">
+    <link rel="manifest" href="site.webmanifest">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <a class="wordmark" href="#top" aria-label="Coffer home">
+        <span class="mark" aria-hidden="true"><span></span></span>
+        <span>Coffer</span>
+      </a>
+      <nav aria-label="Primary navigation">
+        <a href="#security">Security</a>
+        <a href="#format">Format</a>
+        <a href="#roadmap">Roadmap</a>
+        <a class="nav-download" href="https://github.com/remypicciano/coffer/releases/latest">Download v1</a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero" id="top" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="eyebrow">Local-first · open format · no account</p>
+          <h1 id="hero-title">Protect the file.<br><em>Keep the key apart.</em></h1>
+          <p class="lede">Coffer turns one local file into an authenticated container and a separate unlock key. Nothing is uploaded. There is no account, cloud service, master key, or recovery backdoor.</p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="https://github.com/remypicciano/coffer/releases/latest">Download Coffer 1.0</a>
+            <a class="button button-secondary" href="https://github.com/remypicciano/coffer">Inspect the source</a>
+          </div>
+          <p class="release-note">Unsigned preview archives for Windows x86_64, Linux x86_64/ARM64, and macOS Intel/Apple Silicon. Verify the included SHA-256 checksum.</p>
+        </div>
+
+        <div class="artifact" aria-label="Diagram showing one source file becoming a protected container and a separate key">
+          <div class="artifact-label">One local operation</div>
+          <div class="source-file">
+            <span class="file-corner" aria-hidden="true"></span>
+            <span class="file-type">SOURCE</span>
+            <strong>private-notes.txt</strong>
+            <small>Never modified</small>
+          </div>
+          <div class="split-line" aria-hidden="true"><span></span></div>
+          <div class="outputs">
+            <div class="output output-dark">
+              <span>01</span>
+              <strong>private-notes.coffer</strong>
+              <small>Authenticated ciphertext</small>
+            </div>
+            <div class="output output-key">
+              <span>02</span>
+              <strong>private-notes.cofferkey</strong>
+              <small>Store separately</small>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="proof-strip" aria-label="Version 1 release facts">
+        <div><strong>AES-256-GCM</strong><span>Authenticated encryption</span></div>
+        <div><strong>100% local</strong><span>No network dependency</span></div>
+        <div><strong>5 native builds</strong><span>Three operating systems</span></div>
+        <div><strong>Open specification</strong><span>Portable recovery path</span></div>
+      </section>
+
+      <section class="section how" aria-labelledby="how-title">
+        <div class="section-heading">
+          <p class="eyebrow">The operating model</p>
+          <h2 id="how-title">Small enough to explain.</h2>
+          <p>Version 1 deliberately does less. Its security boundary is visible, documented, and testable.</p>
+        </div>
+        <ol class="steps">
+          <li>
+            <span class="step-number">01</span>
+            <div><h3>Choose one file</h3><p>Coffer reads the file locally and creates a fresh 256-bit key from the operating system’s secure random source.</p></div>
+          </li>
+          <li>
+            <span class="step-number">02</span>
+            <div><h3>Review the destinations</h3><p>You choose where the protected container and its matching key will be written. Existing files are never silently replaced.</p></div>
+          </li>
+          <li>
+            <span class="step-number">03</span>
+            <div><h3>Separate the pair</h3><p>Keep the <code>.coffer</code> container and <code>.cofferkey</code> in different places or channels. Both are required to restore.</p></div>
+          </li>
+        </ol>
+      </section>
+
+      <section class="section security" id="security" aria-labelledby="security-title">
+        <div class="security-intro">
+          <p class="eyebrow light">Security boundary</p>
+          <h2 id="security-title">Clear guarantees.<br>Clear limits.</h2>
+          <p>Coffer authenticates before it writes plaintext, uses strict versioned parsers, and refuses overwrite races. It cannot make a compromised computer trustworthy.</p>
+          <a class="text-link light" href="https://github.com/remypicciano/coffer/blob/main/SECURITY.md">Read the security policy <span aria-hidden="true">→</span></a>
+        </div>
+        <div class="boundary-list">
+          <article>
+            <span class="status status-yes">Protects</span>
+            <h3>Contents and filename metadata</h3>
+            <p>The original filename, exact size, and file bytes are inside the authenticated encrypted payload.</p>
+          </article>
+          <article>
+            <span class="status status-yes">Protects</span>
+            <h3>Against accidental replacement</h3>
+            <p>Temporary outputs are committed with no-clobber filesystem operations only after complete writes.</p>
+          </article>
+          <article>
+            <span class="status status-no">Does not protect</span>
+            <h3>An already compromised session</h3>
+            <p>Malware, administrators, keyloggers, screen capture, or process-memory inspection remain outside the boundary.</p>
+          </article>
+          <article>
+            <span class="status status-no">Cannot recover</span>
+            <h3>A lost unlock key</h3>
+            <p>There is no escrow, master key, account recovery, or developer backdoor. Back up the key deliberately.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section format" id="format" aria-labelledby="format-title">
+        <div class="format-grid">
+          <div class="section-heading">
+            <p class="eyebrow">Built to outlive the app</p>
+            <h2 id="format-title">A documented recovery path.</h2>
+            <p>The v1 byte layout is frozen and published with a deterministic compatibility vector. A standalone Python recovery utility provides an independent implementation.</p>
+            <div class="link-row">
+              <a class="text-link" href="https://github.com/remypicciano/coffer/blob/main/docs/coffer-format-v1.md">Format specification <span aria-hidden="true">→</span></a>
+              <a class="text-link" href="https://github.com/remypicciano/coffer/blob/main/docs/recovery.md">Recovery guide <span aria-hidden="true">→</span></a>
+            </div>
+          </div>
+          <div class="format-stack" aria-label="Coffer version 1 container layout">
+            <div class="byte-row"><span>8 B</span><strong>Magic</strong><code>COFFER\0\x01</code></div>
+            <div class="byte-row"><span>2 B</span><strong>Version + algorithm</strong><code>01 · 01</code></div>
+            <div class="byte-row"><span>12 B</span><strong>Random nonce</strong><code>authenticated</code></div>
+            <div class="byte-row"><span>8 B</span><strong>Ciphertext length</strong><code>big-endian</code></div>
+            <div class="byte-row byte-encrypted"><span>n B</span><strong>Encrypted payload + tag</strong><code>filename · size · bytes</code></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section builds" aria-labelledby="builds-title">
+        <div class="section-heading compact">
+          <p class="eyebrow">Release matrix</p>
+          <h2 id="builds-title">Native where it matters.</h2>
+        </div>
+        <div class="build-table" role="table" aria-label="Available release builds">
+          <div class="build-row build-head" role="row"><span role="columnheader">Platform</span><span role="columnheader">Architecture</span><span role="columnheader">Artifact</span><span role="columnheader">Status</span></div>
+          <div class="build-row" role="row"><strong role="cell">Windows</strong><span role="cell">x86_64</span><code role="cell">.exe · .zip</code><span role="cell" class="build-status">Built</span></div>
+          <div class="build-row" role="row"><strong role="cell">Linux</strong><span role="cell">x86_64 · ARM64</span><code role="cell">binary · .tar.gz</code><span role="cell" class="build-status">Built</span></div>
+          <div class="build-row" role="row"><strong role="cell">macOS</strong><span role="cell">Intel · Apple Silicon</span><code role="cell">binary · .tar.gz</code><span role="cell" class="build-status">Built</span></div>
+        </div>
+      </section>
+
+      <section class="section roadmap" id="roadmap" aria-labelledby="roadmap-title">
+        <div class="roadmap-lead">
+          <p class="eyebrow">What follows v1</p>
+          <h2 id="roadmap-title">Version 2 begins with the specification.</h2>
+          <p>Key carriers and metadata sanitization change the security model. They are being designed as an explicit new container version—not slipped into v1 as ambiguous flags.</p>
+          <a class="button button-secondary" href="https://github.com/remypicciano/coffer/blob/main/docs/roadmap.md">Read the technical roadmap</a>
+        </div>
+        <div class="roadmap-items">
+          <article><span>Research</span><h3>Ordinary-file key carriers</h3><p>Derive wrapping material from exact carrier bytes while leaving the carrier untouched and useful in its normal application.</p></article>
+          <article><span>Stronger profile</span><h3>Carrier + passphrase</h3><p>Combine the carrier digest with Argon2id so possession of a public carrier is not sufficient by itself.</p></article>
+          <article><span>Privacy tooling</span><h3>Verified sanitization</h3><p>Create separate sanitized copies for formats where metadata removal can be performed and checked reliably.</p></article>
+        </div>
+      </section>
+
+      <section class="closing" aria-labelledby="closing-title">
+        <p class="eyebrow light">Coffer 1.0</p>
+        <h2 id="closing-title">Local files deserve<br>a local security boundary.</h2>
+        <div class="hero-actions">
+          <a class="button button-paper" href="https://github.com/remypicciano/coffer/releases/latest">Get the release</a>
+          <a class="button button-outline" href="https://github.com/remypicciano/coffer">Review on GitHub</a>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <a class="wordmark" href="#top"><span class="mark" aria-hidden="true"><span></span></span><span>Coffer</span></a>
+      <p>Open source under the MIT License. Built by Rémy Picciano.</p>
+      <nav aria-label="Footer navigation">
+        <a href="https://github.com/remypicciano/coffer/blob/main/SECURITY.md">Security</a>
+        <a href="https://github.com/remypicciano/coffer/blob/main/SUPPORT.md">Support</a>
+        <a href="https://github.com/remypicciano/coffer/blob/main/LICENSE">License</a>
+      </nav>
+    </footer>
+  </body>
+</html>
