@@ -76,7 +76,7 @@ Coffer is a local-first desktop application for protecting individual files with
 - Supports drag-and-drop and native file-selection dialogs.
 - Shows explicit review screens before protection or restoration starts.
 - Runs file operations on background workers so the interface remains responsive.
-- Displays progress, cancellation, success, and contextual error states.
+- Displays estimated activity progress, cancellation, success, and contextual error states. Real byte-level progress for large files is tracked as v1 follow-up work.
 - Preserves file selections when navigating between application areas.
 - Shows planned and completed output paths.
 - Can reveal completed output destinations in Finder, Explorer, or the platform file manager.

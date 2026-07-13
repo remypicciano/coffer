@@ -35,6 +35,16 @@ Status: implemented for v1
 - Never store a container filename, container identifier, or key fingerprint in the key file.
 - Exclude key carriers, passphrases, metadata sanitization, cloud transport, and other optional modes from v1.
 
+## V1 maintenance and usability
+
+Status: planned follow-up work
+
+- Replace the time-based processing animation with real byte-level progress reported by the background worker for both protection and restoration.
+- Calculate progress from bytes read, encrypted or authenticated, and safely written instead of advancing cosmetically to 90% and waiting there.
+- Show an indeterminate state only when the operating system or cryptographic stage cannot provide a meaningful total.
+- Keep cancellation responsive throughout large-file operations and distinguish authentication, writing, and final commit stages without implying completion early.
+- Add automated tests proving that progress is monotonic, never exceeds completed work, reaches 100% only after the output is committed, and resets correctly after cancellation or failure.
+
 ## Milestone 4: Coffer format v2 advanced privacy
 
 Status: research and specification required
