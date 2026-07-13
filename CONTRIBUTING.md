@@ -6,6 +6,7 @@ Thank you for helping improve Coffer. Changes to cryptography, parsing, key hand
 
 - Use a focused branch and explain the user or security problem being solved.
 - Discuss container-format changes before implementation. Version 1 readers must remain strict and compatible.
+- Treat [the v2 format](docs/coffer-format-v2.md) as a review draft: cryptographic-suite changes require deterministic vectors, threat-model analysis, and focused review before production code.
 - Report vulnerabilities privately according to [SECURITY.md](SECURITY.md).
 - Never commit real keys, containers, plaintext samples, credentials, environment files, logs, local assistant configuration, generated builds, or private test fixtures.
 

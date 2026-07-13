@@ -21,3 +21,5 @@ The repository also runs weekly and pull-request scans for committed secrets, Ru
 Coffer protects file contents and authenticated filename metadata while the container and its matching key remain separated. It does not protect secrets from malware or an administrator already controlling the user session, a compromised build or operating system, screen capture, active process-memory inspection, or disclosure of both the container and matching key.
 
 No project representative will ask for an unlock key, passphrase, carrier file, or confidential plaintext as part of support or vulnerability triage.
+
+The complete project assumptions, out-of-scope threats, residual risks, and v2 review questions are documented in the [threat model](docs/threat-model.md).

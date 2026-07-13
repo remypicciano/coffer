@@ -47,9 +47,11 @@ Status: planned follow-up work
 
 ## Milestone 4: Coffer format v2 advanced privacy
 
-Status: research and specification required
+Status: format and threat-model draft complete; independent review and implementation required
 
 Version 2 introduces key carriers and optional metadata sanitization. Neither feature may change the v1 parser or be silently enabled for a v1 container.
+
+The normative design work is tracked in [coffer-format-v2.md](coffer-format-v2.md), with security assumptions and review questions in [threat-model.md](threat-model.md). Implementation begins only after the carrier-only suite and test vectors receive focused review.
 
 ### Key carrier mode
 
@@ -70,6 +72,16 @@ Key carrier mode allows an unchanged ordinary file, such as a private photograph
 - Provide local carrier fingerprint verification without writing identifying information into the carrier.
 - Define this as a new container version rather than adding ambiguous behavior to v1.
 - Obtain focused cryptographic review before implementation is marked production-ready.
+
+### Implementation sequence
+
+1. Obtain review of the fixed carrier-only header, HKDF domain separation, AES-GCM associated-data boundaries, and resource limits.
+2. Publish deterministic suite-1 fixtures and verify them in an independent language.
+3. Implement parser and carrier hashing behind an experimental boundary with fuzz targets and no UI exposure.
+4. Add no-clobber protect/restore APIs, cancellation, progress, and cross-platform fixtures.
+5. Integrate explicit carrier-only risk language into the UI and keep v1 workflows unchanged.
+6. Specify and review carrier-plus-passphrase parameters before assigning suite 2.
+7. Add format-specific sanitizers only when removed, preserved, and unverified classes can be reported honestly.
 
 ### Optional metadata sanitization
 

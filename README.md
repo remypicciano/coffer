@@ -67,11 +67,13 @@ The repository's **Linux build** GitHub Actions workflow produces downloadable `
 ## Project documentation
 
 - [Container format proposal](docs/coffer-format-v1.md)
+- [Version 2 review draft](docs/coffer-format-v2.md)
 - [Complete feature catalog](docs/features.md)
 - [Cross-platform recovery and decryption](docs/recovery.md)
 - [Product roadmap](docs/roadmap.md)
 - [Key-carrier safety](docs/key-carrier-safety.md)
 - [Security audit notes](docs/security-audit.md)
+- [Threat model](docs/threat-model.md)
 - [Development and repository hygiene](docs/development.md)
 - [Security policy](SECURITY.md)
 - [Support policy](SUPPORT.md)
