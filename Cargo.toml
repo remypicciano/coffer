@@ -1,10 +1,30 @@
 [package]
 name = "coffer"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2024"
+license = "MIT"
+repository = "https://github.com/remypicciano/coffer"
+readme = "README.md"
+description = "Local-first authenticated file encryption for the desktop"
 
 [dependencies]
-eframe = "0.33"
-egui = "0.33"
-egui_extras = { version = "0.33", features = ["all_loaders"] }
-rfd = "0.15"
+# Feature-unifies with aes-gcm's backend so expanded AES round keys are wiped on drop.
+aes = { version = "0.8", features = ["zeroize"] }
+aes-gcm = { version = "0.10", features = ["zeroize"] }
+eframe = { version = "0.34", default-features = false, features = [
+    "accesskit",
+    "default_fonts",
+    "glow",
+    "x11",
+] }
+egui = "0.34"
+egui_extras = { version = "0.34", features = ["all_loaders"] }
+getrandom = "0.4"
+rfd = { version = "0.17", default-features = false, features = ["xdg-portal"] }
+thiserror = "2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+zeroize = { version = "1.8", features = ["derive"] }
+
+[dev-dependencies]
+tempfile = "3"

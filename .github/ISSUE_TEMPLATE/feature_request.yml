@@ -1,0 +1,26 @@
+name: Feature request
+description: Suggest a product improvement without including sensitive data.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: Describe the user problem without including keys, private files, or confidential information.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+    validations:
+      required: true
+  - type: textarea
+    id: security
+    attributes:
+      label: Security or privacy considerations
+      description: Explain whether the feature adds networking, cloud storage, metadata handling, recovery, or new key behavior.
+    validations:
+      required: true

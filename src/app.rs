@@ -3,6 +3,17 @@ use rfd::FileDialog;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+    mpsc::{self, Receiver, TryRecvError},
+};
+use std::time::Duration;
+
+use crate::coffer::{
+    CofferError, ProtectRequest, ProtectResult, RestoreRequest, RestoreResult, protect_file,
+    restore_file,
+};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Workflow {
@@ -27,13 +38,6 @@ pub enum ProtectStage {
     Review,
     Processing,
     Complete,
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum ProtectKeySource {
-    #[default]
-    GenerateNew,
-    Existing,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -113,10 +117,7 @@ pub struct CofferApp {
     pub workflow: Workflow,
     pub protect_stage: ProtectStage,
     pub open_stage: OpenStage,
-    pub protect_key_source: ProtectKeySource,
-    pub scroll_to_protect_key: bool,
     pub source_file: Option<SelectedFile>,
-    pub protect_key_file: Option<SelectedFile>,
     pub encrypted_file: Option<SelectedFile>,
     pub key_file: Option<SelectedFile>,
     pub notice: Notice,
@@ -135,10 +136,28 @@ pub struct CofferApp {
     pub protected_filename: String,
     pub restored_filename: String,
     pub processing_started_at: Option<f64>,
-    pub ask_for_output_location: bool,
-    pub confirm_before_replace: bool,
     pub offer_text_preview: bool,
-    pub clear_recent_locations: bool,
+    operation_receiver: Option<Receiver<OperationOutcome>>,
+    operation_cancel: Option<OperationControl>,
+}
+
+enum OperationOutcome {
+    Protected(Result<ProtectResult, CofferError>),
+    Restored(Result<RestoreResult, CofferError>),
+}
+
+struct OperationControl {
+    cancelled: Arc<AtomicBool>,
+    worker: Option<std::thread::JoinHandle<()>>,
+}
+
+impl Drop for OperationControl {
+    fn drop(&mut self) {
+        self.cancelled.store(true, Ordering::Relaxed);
+        if let Some(worker) = self.worker.take() {
+            let _ = worker.join();
+        }
+    }
 }
 
 impl Default for CofferApp {
@@ -150,10 +169,7 @@ impl Default for CofferApp {
             workflow: Workflow::Open,
             protect_stage: ProtectStage::SelectFile,
             open_stage: OpenStage::SelectContainer,
-            protect_key_source: ProtectKeySource::GenerateNew,
-            scroll_to_protect_key: false,
             source_file: None,
-            protect_key_file: None,
             encrypted_file: None,
             key_file: None,
             notice: Notice::new(NoticeKind::Info, "Ready"),
@@ -172,10 +188,9 @@ impl Default for CofferApp {
             protected_filename: String::new(),
             restored_filename: String::new(),
             processing_started_at: None,
-            ask_for_output_location: true,
-            confirm_before_replace: true,
             offer_text_preview: true,
-            clear_recent_locations: true,
+            operation_receiver: None,
+            operation_cancel: None,
         }
     }
 }
@@ -250,9 +265,6 @@ impl CofferApp {
     pub fn reset_protect(&mut self) {
         self.protect_stage = ProtectStage::SelectFile;
         self.source_file = None;
-        self.protect_key_source = ProtectKeySource::GenerateNew;
-        self.scroll_to_protect_key = false;
-        self.protect_key_file = None;
         self.encryption_output = None;
         self.key_output = None;
         self.progress = 0.0;
@@ -296,39 +308,9 @@ impl CofferApp {
         }
     }
 
-    pub fn select_protect_key(&mut self) {
-        if let Some(path) = FileDialog::new()
-            .add_filter("Coffer keys", &["key"])
-            .pick_file()
-        {
-            self.protect_key_file = Some(SelectedFile::from_path(path));
-            self.set_notice(
-                NoticeKind::Info,
-                "Existing key selected - continue to review",
-            );
-        }
-    }
-
-    pub fn set_protect_key_source(&mut self, source: ProtectKeySource) {
-        self.protect_key_source = source;
-        if source == ProtectKeySource::GenerateNew {
-            self.protect_key_file = None;
-            self.scroll_to_protect_key = false;
-            self.set_notice(NoticeKind::Info, "Coffer will create a new random key");
-        } else {
-            self.scroll_to_protect_key = true;
-            self.set_notice(NoticeKind::Warning, "Choose an existing Coffer key");
-        }
-    }
-
-    pub fn clear_protect_key(&mut self) {
-        self.protect_key_file = None;
-        self.set_notice(NoticeKind::Warning, "Choose an existing Coffer key");
-    }
-
     pub fn select_key(&mut self) {
         if let Some(path) = FileDialog::new()
-            .add_filter("Coffer keys", &["key", "bin"])
+            .add_filter("Coffer keys", &["cofferkey"])
             .pick_file()
         {
             self.key_file = Some(SelectedFile::from_path(path));
@@ -403,8 +385,6 @@ impl CofferApp {
 
     pub fn can_protect(&self) -> bool {
         self.source_file.is_some()
-            && (self.protect_key_source == ProtectKeySource::GenerateNew
-                || self.protect_key_file.is_some())
     }
 
     pub fn can_open(&self) -> bool {
@@ -450,35 +430,98 @@ impl CofferApp {
     }
 
     pub fn run_protect(&mut self) {
+        if self.operation_receiver.is_some() {
+            self.show_error("Wait for the current file operation to finish or cancel it first.");
+            return;
+        }
         self.prepare_protect_output();
         if !self.can_run_protect() {
             self.show_error("Choose a destination and a valid .coffer filename before continuing.");
             return;
         }
 
+        let Some(source) = self.source_file.as_ref().map(|file| file.path.clone()) else {
+            return;
+        };
+        let Some(container_output) = self.encryption_output.clone() else {
+            return;
+        };
+        let Some(key_output) = self.key_output.clone() else {
+            return;
+        };
+        let cancelled = Arc::new(AtomicBool::new(false));
+        let worker_cancelled = Arc::clone(&cancelled);
+        let (sender, receiver) = mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            let result = protect_file(ProtectRequest {
+                source: &source,
+                container_output: &container_output,
+                key_output: &key_output,
+                cancelled: Some(&worker_cancelled),
+            });
+            let _ = sender.send(OperationOutcome::Protected(result));
+        });
+
+        self.operation_receiver = Some(receiver);
+        self.operation_cancel = Some(OperationControl {
+            cancelled,
+            worker: Some(worker),
+        });
         self.protect_stage = ProtectStage::Processing;
         self.progress = 0.0;
         self.processing_started_at = None;
         self.refresh_planned_outputs();
-        self.set_notice(NoticeKind::Info, "Previewing protection workflow");
+        self.set_notice(NoticeKind::Info, "Protecting file locally");
     }
 
     pub fn run_open(&mut self) {
+        if self.operation_receiver.is_some() {
+            self.show_error("Wait for the current file operation to finish or cancel it first.");
+            return;
+        }
         self.prepare_restore_output();
         if !self.can_run_open() {
             self.show_error("Choose both files, a destination, and a valid restored filename.");
             return;
         }
 
+        let Some(container) = self.encrypted_file.as_ref().map(|file| file.path.clone()) else {
+            return;
+        };
+        let Some(key) = self.key_file.as_ref().map(|file| file.path.clone()) else {
+            return;
+        };
+        let Some(output) = self.decryption_output.clone() else {
+            return;
+        };
+        let cancelled = Arc::new(AtomicBool::new(false));
+        let worker_cancelled = Arc::clone(&cancelled);
+        let (sender, receiver) = mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            let result = restore_file(RestoreRequest {
+                container: &container,
+                key: &key,
+                output: &output,
+                cancelled: Some(&worker_cancelled),
+            });
+            let _ = sender.send(OperationOutcome::Restored(result));
+        });
+
+        self.operation_receiver = Some(receiver);
+        self.operation_cancel = Some(OperationControl {
+            cancelled,
+            worker: Some(worker),
+        });
         self.open_stage = OpenStage::Processing;
         self.progress = 0.0;
         self.processing_started_at = None;
-        self.decrypted_text = Some("Secret decrypted message.".to_string());
         self.refresh_planned_outputs();
-        self.set_notice(NoticeKind::Info, "Previewing restoration workflow");
+        self.set_notice(NoticeKind::Info, "Authenticating before restoration");
     }
 
     pub fn cancel_processing(&mut self) {
+        self.operation_cancel.take();
+        self.operation_receiver = None;
         self.processing_started_at = None;
         self.progress = 0.0;
         if self.protect_stage == ProtectStage::Processing {
@@ -489,7 +532,7 @@ impl CofferApp {
         }
         self.set_notice(
             NoticeKind::Warning,
-            "Preview cancelled - no files were changed",
+            "Cancelling and removing incomplete output",
         );
     }
 
@@ -528,42 +571,97 @@ impl CofferApp {
             .protect_destination
             .as_ref()
             .map(|path| path.join(&self.protected_filename));
-        self.key_output = if self.protect_key_source == ProtectKeySource::GenerateNew {
-            self.protect_destination
-                .as_ref()
-                .map(|path| path.join(format!("{}.key", self.protected_filename)))
-        } else {
-            None
-        };
+        self.key_output = self.protect_destination.as_ref().map(|path| {
+            let stem = self
+                .protected_filename
+                .strip_suffix(".coffer")
+                .unwrap_or(&self.protected_filename);
+            path.join(format!("{stem}.cofferkey"))
+        });
         self.decryption_output = self
             .restore_destination
             .as_ref()
             .map(|path| path.join(&self.restored_filename));
     }
 
-    fn update_mock_processing(&mut self, ctx: &egui::Context) {
+    fn update_processing(&mut self, ctx: &egui::Context) {
         let processing = self.protect_stage == ProtectStage::Processing
             || self.open_stage == OpenStage::Processing;
         if !processing {
             return;
         }
-        let now = ctx.input(|input| input.time);
-        let started = *self.processing_started_at.get_or_insert(now);
-        self.progress = ((now - started) as f32 / 2.4).clamp(0.0, 1.0);
-        if self.progress >= 1.0 {
-            self.processing_started_at = None;
-            if self.protect_stage == ProtectStage::Processing {
+        let outcome =
+            self.operation_receiver
+                .as_ref()
+                .and_then(|receiver| match receiver.try_recv() {
+                    Ok(outcome) => Some(Ok(outcome)),
+                    Err(TryRecvError::Disconnected) => Some(Err(())),
+                    Err(TryRecvError::Empty) => None,
+                });
+        match outcome {
+            Some(Ok(outcome)) => {
+                self.operation_receiver = None;
+                self.operation_cancel = None;
+                self.processing_started_at = None;
+                self.progress = 1.0;
+                self.finish_operation(outcome);
+            }
+            Some(Err(())) => {
+                self.operation_receiver = None;
+                self.operation_cancel = None;
+                self.processing_started_at = None;
+                self.progress = 0.0;
+                if self.protect_stage == ProtectStage::Processing {
+                    self.protect_stage = ProtectStage::Review;
+                }
+                if self.open_stage == OpenStage::Processing {
+                    self.open_stage = OpenStage::Review;
+                }
+                self.show_error(
+                    "The background operation stopped unexpectedly. No incomplete output was kept.",
+                );
+            }
+            None => {
+                let now = ctx.input(|input| input.time);
+                let started = *self.processing_started_at.get_or_insert(now);
+                self.progress = (0.15 + ((now - started) as f32 * 0.08)).min(0.9);
+                ctx.request_repaint_after(Duration::from_millis(50));
+            }
+        }
+    }
+
+    fn finish_operation(&mut self, outcome: OperationOutcome) {
+        match outcome {
+            OperationOutcome::Protected(Ok(result)) => {
+                self.encryption_output = Some(result.container);
+                self.key_output = Some(result.key);
                 self.protect_stage = ProtectStage::Complete;
+                self.set_notice(NoticeKind::Success, "File protected successfully");
             }
-            if self.open_stage == OpenStage::Processing {
+            OperationOutcome::Restored(Ok(result)) => {
+                self.decryption_output = Some(result.output.clone());
+                self.decrypted_text = if self.offer_text_preview {
+                    fs::metadata(&result.output)
+                        .ok()
+                        .filter(|metadata| metadata.len() <= 1_048_576)
+                        .and_then(|_| fs::read_to_string(&result.output).ok())
+                } else {
+                    None
+                };
                 self.open_stage = OpenStage::Complete;
+                self.set_notice(
+                    NoticeKind::Success,
+                    format!("Restored {} successfully", result.original_filename),
+                );
             }
-            self.set_notice(
-                NoticeKind::Warning,
-                "Prototype complete - no files were written",
-            );
-        } else {
-            ctx.request_repaint();
+            OperationOutcome::Protected(Err(error)) => {
+                self.protect_stage = ProtectStage::Review;
+                self.show_error(error.user_message());
+            }
+            OperationOutcome::Restored(Err(error)) => {
+                self.open_stage = OpenStage::Review;
+                self.show_error(error.user_message());
+            }
         }
     }
 
@@ -591,19 +689,10 @@ impl CofferApp {
             let Some(path) = dropped.path else { continue };
             match self.workflow {
                 Workflow::Protect => {
-                    let is_key = path
-                        .extension()
-                        .and_then(|extension| extension.to_str())
-                        .is_some_and(|extension| extension.eq_ignore_ascii_case("key"));
-                    if self.protect_key_source == ProtectKeySource::Existing && is_key {
-                        self.protect_key_file = Some(SelectedFile::from_path(path));
-                        self.set_notice(NoticeKind::Info, "Existing key selected");
-                    } else {
-                        self.source_file = Some(SelectedFile::from_path(path));
-                        self.prepare_protect_output();
-                        self.protect_stage = ProtectStage::SelectFile;
-                        self.set_notice(NoticeKind::Info, "File selected - continue to review");
-                    }
+                    self.source_file = Some(SelectedFile::from_path(path));
+                    self.prepare_protect_output();
+                    self.protect_stage = ProtectStage::SelectFile;
+                    self.set_notice(NoticeKind::Info, "File selected - continue to review");
                 }
                 Workflow::Open => assign_open_drop(self, path),
                 Workflow::Security | Workflow::Settings => {}
@@ -627,19 +716,20 @@ impl CofferApp {
 }
 
 impl eframe::App for CofferApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        crate::ui::theme::apply_visuals(ctx, self.theme_mode == ThemeMode::Light);
-        self.update_splash(ctx);
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        let ctx = ui.ctx().clone();
+        crate::ui::theme::apply_visuals(&ctx, self.theme_mode == ThemeMode::Light);
+        self.update_splash(&ctx);
         if self.show_splash {
-            crate::ui::home::show_splash(self, ctx);
+            crate::ui::home::show_splash(self, ui);
             return;
         }
-        self.handle_shortcuts(ctx);
-        self.handle_dropped_files(ctx);
-        self.update_mock_processing(ctx);
-        crate::ui::home::show(self, ctx);
-        crate::ui::dialogs::show(self, ctx);
-        crate::ui::secure_viewer::show(self, ctx);
+        self.handle_shortcuts(&ctx);
+        self.handle_dropped_files(&ctx);
+        self.update_processing(&ctx);
+        crate::ui::home::show(self, ui);
+        crate::ui::dialogs::show(self, &ctx);
+        crate::ui::secure_viewer::show(self, &ctx);
     }
 }
 
@@ -662,7 +752,7 @@ fn assign_open_drop(app: &mut CofferApp, path: PathBuf) {
             app.open_stage = OpenStage::SelectKey;
             app.set_notice(NoticeKind::Info, "Protected file selected");
         }
-        "bin" | "key" => {
+        "cofferkey" => {
             app.key_file = Some(SelectedFile::from_path(path));
             app.open_stage = if app.encrypted_file.is_some() {
                 OpenStage::SelectKey
@@ -671,7 +761,7 @@ fn assign_open_drop(app: &mut CofferApp, path: PathBuf) {
             };
             app.set_notice(NoticeKind::Info, "Key selected");
         }
-        _ => app.show_error("Drop a .coffer file or a supported .key file."),
+        _ => app.show_error("Drop a .coffer file or a supported .cofferkey file."),
     }
 }
 
@@ -743,6 +833,7 @@ fn format_file_size(size: u64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::{Duration, Instant};
 
     fn selected(name: &str) -> SelectedFile {
         SelectedFile {
@@ -755,6 +846,19 @@ mod tests {
                 .to_string(),
             size_bytes: 42,
         }
+    }
+
+    fn wait_for_operation(app: &mut CofferApp) {
+        let context = egui::Context::default();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while app.operation_receiver.is_some() && Instant::now() < deadline {
+            app.update_processing(&context);
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        assert!(
+            app.operation_receiver.is_none(),
+            "background operation timed out"
+        );
     }
 
     #[test]
@@ -787,7 +891,7 @@ mod tests {
         };
         app.review_open();
         assert_ne!(app.open_stage, OpenStage::Review);
-        app.key_file = Some(selected("notes.key"));
+        app.key_file = Some(selected("notes.cofferkey"));
         app.review_open();
         assert_eq!(app.open_stage, OpenStage::Review);
     }
@@ -796,46 +900,6 @@ mod tests {
     fn notices_have_explicit_severity() {
         let notice = Notice::new(NoticeKind::Success, "Complete");
         assert_eq!(notice.kind, NoticeKind::Success);
-    }
-
-    #[test]
-    fn existing_key_must_be_selected_before_protect_review() {
-        let mut app = CofferApp {
-            source_file: Some(selected("notes.txt")),
-            protect_key_source: ProtectKeySource::Existing,
-            ..Default::default()
-        };
-        assert!(!app.can_protect());
-        app.review_protect();
-        assert_eq!(app.protect_stage, ProtectStage::SelectFile);
-
-        app.protect_key_file = Some(selected("shared.key"));
-        assert!(app.can_protect());
-        app.review_protect();
-        assert_eq!(app.protect_stage, ProtectStage::Review);
-    }
-
-    #[test]
-    fn existing_key_mode_does_not_plan_a_new_key_file() {
-        let mut app = CofferApp {
-            source_file: Some(selected("notes.txt")),
-            protect_key_source: ProtectKeySource::Existing,
-            protect_key_file: Some(selected("shared.key")),
-            ..Default::default()
-        };
-        app.run_protect();
-        assert!(app.encryption_output.is_some());
-        assert!(app.key_output.is_none());
-    }
-
-    #[test]
-    fn choosing_existing_key_requests_one_scroll() {
-        let mut app = CofferApp::default();
-        app.set_protect_key_source(ProtectKeySource::Existing);
-        assert!(app.scroll_to_protect_key);
-
-        app.set_protect_key_source(ProtectKeySource::GenerateNew);
-        assert!(!app.scroll_to_protect_key);
     }
 
     #[test]
@@ -878,5 +942,36 @@ mod tests {
         assert_eq!(app.splash_opacity(11.8), 1.0);
         assert_eq!(app.splash_opacity(13.0), 1.0);
         assert!(app.splash_opacity(13.4) < 1.0);
+    }
+
+    #[test]
+    fn interface_workflow_runs_real_protection_and_restoration() {
+        let directory = tempfile::tempdir().unwrap();
+        let source_path = directory.path().join("notes.txt");
+        fs::write(&source_path, "private notes").unwrap();
+        let mut app = CofferApp {
+            workflow: Workflow::Protect,
+            source_file: Some(SelectedFile::from_path(source_path)),
+            protect_destination: Some(directory.path().to_path_buf()),
+            protected_filename: "notes.coffer".to_string(),
+            ..Default::default()
+        };
+        app.run_protect();
+        wait_for_operation(&mut app);
+        assert_eq!(app.protect_stage, ProtectStage::Complete);
+        let container = app.encryption_output.clone().unwrap();
+        let key = app.key_output.clone().unwrap();
+        assert_eq!(key.file_name().unwrap(), "notes.cofferkey");
+
+        let restored_path = directory.path().join("restored.txt");
+        app.workflow = Workflow::Open;
+        app.encrypted_file = Some(SelectedFile::from_path(container));
+        app.key_file = Some(SelectedFile::from_path(key));
+        app.restore_destination = Some(directory.path().to_path_buf());
+        app.restored_filename = "restored.txt".to_string();
+        app.run_open();
+        wait_for_operation(&mut app);
+        assert_eq!(app.open_stage, OpenStage::Complete);
+        assert_eq!(fs::read_to_string(restored_path).unwrap(), "private notes");
     }
 }

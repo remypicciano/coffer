@@ -22,7 +22,7 @@ fn show_error_dialog(app: &mut CofferApp, ctx: &egui::Context) {
         .default_width(420.0)
         .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
         .frame(
-            egui::Frame::window(&ctx.style())
+            egui::Frame::window(&ctx.global_style())
                 .fill(theme::surface())
                 .stroke(egui::Stroke::new(1.0_f32, theme::border()))
                 .corner_radius(egui::CornerRadius::same(8))

@@ -1,11 +1,10 @@
 use eframe::egui;
 
-use crate::app::{
-    CofferApp, NoticeKind, OpenStage, ProtectKeySource, ProtectStage, ThemeMode, Workflow,
-};
+use crate::app::{CofferApp, NoticeKind, OpenStage, ProtectStage, ThemeMode, Workflow};
 use crate::ui::{theme, widgets};
 
-pub fn show_splash(app: &mut CofferApp, ctx: &egui::Context) {
+pub fn show_splash(app: &mut CofferApp, ui: &mut egui::Ui) {
+    let ctx = ui.ctx().clone();
     let now = ctx.input(|input| input.time);
     let opacity = app.splash_opacity(now);
     let tint = |color: egui::Color32| color.gamma_multiply(opacity);
@@ -16,7 +15,7 @@ pub fn show_splash(app: &mut CofferApp, ctx: &egui::Context) {
 
     egui::CentralPanel::default()
         .frame(egui::Frame::new().fill(egui::Color32::from_rgb(6, 9, 17)))
-        .show(ctx, |ui| {
+        .show_inside(ui, |ui| {
             let response = ui.interact(
                 ui.max_rect(),
                 ui.id().with("dismiss_splash"),
@@ -79,7 +78,7 @@ pub fn show_splash(app: &mut CofferApp, ctx: &egui::Context) {
             ui.painter().text(
                 egui::pos2(ui.max_rect().center().x, ui.max_rect().bottom() - 30.0),
                 egui::Align2::CENTER_CENTER,
-                "Created by John Doe",
+                "Created by Rémy Picciano",
                 egui::FontId::proportional(12.0),
                 tint(egui::Color32::from_rgb(145, 143, 163)),
             );
@@ -90,32 +89,33 @@ fn smooth_out(value: f32) -> f32 {
     1.0 - (1.0 - value.clamp(0.0, 1.0)).powi(3)
 }
 
-pub fn show(app: &mut CofferApp, ctx: &egui::Context) {
+pub fn show(app: &mut CofferApp, ui: &mut egui::Ui) {
+    let ctx = ui.ctx().clone();
     let compact = ctx.input(|input| input.content_rect().width()) < 980.0;
 
-    egui::TopBottomPanel::top("workspace_header")
-        .exact_height(68.0)
+    egui::Panel::top("workspace_header")
+        .exact_size(68.0)
         .frame(
             egui::Frame::new()
                 .fill(theme::surface())
                 .stroke(egui::Stroke::new(1.0_f32, theme::border()))
                 .inner_margin(egui::Margin::symmetric(if compact { 16 } else { 28 }, 10)),
         )
-        .show(ctx, |ui| header(app, ui, compact));
+        .show_inside(ui, |ui| header(app, ui, compact));
 
-    egui::TopBottomPanel::bottom("workspace_actions")
-        .exact_height(70.0)
+    egui::Panel::bottom("workspace_actions")
+        .exact_size(70.0)
         .frame(
             egui::Frame::new()
                 .fill(theme::surface())
                 .stroke(egui::Stroke::new(1.0_f32, theme::border()))
                 .inner_margin(egui::Margin::symmetric(if compact { 16 } else { 28 }, 12)),
         )
-        .show(ctx, |ui| action_bar(app, ui));
+        .show_inside(ui, |ui| action_bar(app, ui));
 
     egui::CentralPanel::default()
         .frame(egui::Frame::new().fill(theme::background()))
-        .show(ctx, |ui| content(app, ui, compact));
+        .show_inside(ui, |ui| content(app, ui, compact));
 }
 
 fn header(app: &mut CofferApp, ui: &mut egui::Ui, compact: bool) {
@@ -478,87 +478,14 @@ fn protect_select(app: &mut CofferApp, ui: &mut egui::Ui) {
                 return;
             }
             ui.add_space(26.0);
-            ui.heading(
-                egui::RichText::new("Unlock key")
-                    .size(20.0)
-                    .strong()
-                    .color(theme::text_primary()),
+            inline_notice(
+                ui,
+                "Fresh key for this file",
+                "Coffer will create a new random .cofferkey. Every protected file receives its own key so one lost or exposed key cannot unlock your other files.",
+                theme::primary(),
             );
-            ui.add_space(8.0);
-            ui.label(
-                egui::RichText::new("Use a unique key for stronger separation between files.")
-                    .color(theme::text_secondary()),
-            );
-            ui.add_space(16.0);
-            key_choice(app, ui);
         }
     }
-}
-
-fn key_choice(app: &mut CofferApp, ui: &mut egui::Ui) {
-    ui.horizontal(|ui| {
-        let new_selected = app.protect_key_source == ProtectKeySource::GenerateNew;
-        if selection_button(ui, "Create new key", new_selected).clicked() && !new_selected {
-            app.set_protect_key_source(ProtectKeySource::GenerateNew);
-        }
-        let existing_selected = app.protect_key_source == ProtectKeySource::Existing;
-        if selection_button(ui, "Use existing key", existing_selected).clicked()
-            && !existing_selected
-        {
-            app.set_protect_key_source(ProtectKeySource::Existing);
-        }
-    });
-
-    if app.protect_key_source == ProtectKeySource::Existing {
-        ui.add_space(16.0);
-        match app.protect_key_file.as_ref() {
-            Some(file) => {
-                if widgets::file_card(ui, file) {
-                    app.clear_protect_key();
-                }
-            }
-            None => {
-                let response = widgets::drop_zone(
-                    ui,
-                    "Drop a Coffer key",
-                    "The key will be validated before protection.",
-                    "browse",
-                );
-                if response.clicked() {
-                    app.select_protect_key();
-                }
-                if app.scroll_to_protect_key {
-                    ui.scroll_to_rect(response.rect, Some(egui::Align::Center));
-                    app.scroll_to_protect_key = false;
-                }
-            }
-        }
-    }
-}
-
-fn selection_button(ui: &mut egui::Ui, label: &str, selected: bool) -> egui::Response {
-    ui.add_sized(
-        [176.0, 44.0],
-        egui::Button::new(egui::RichText::new(label).strong().color(if selected {
-            theme::primary()
-        } else {
-            theme::text_secondary()
-        }))
-        .fill(if selected {
-            theme::primary().gamma_multiply(0.10)
-        } else {
-            theme::surface()
-        })
-        .stroke(egui::Stroke::new(
-            1.0_f32,
-            if selected {
-                theme::primary()
-            } else {
-                theme::border()
-            },
-        ))
-        .corner_radius(8.0),
-    )
 }
 
 fn protect_review(app: &mut CofferApp, ui: &mut egui::Ui) {
@@ -584,15 +511,12 @@ fn protect_review(app: &mut CofferApp, ui: &mut egui::Ui) {
     }
     app.refresh_planned_outputs();
     ui.add_space(18.0);
-    let key_copy = match app.protect_key_source {
-        ProtectKeySource::GenerateNew => {
-            "A new key file will be saved beside the protected copy. Keep them separate after saving."
-        }
-        ProtectKeySource::Existing => {
-            "The selected key will unlock this file. No new key file will be created."
-        }
-    };
-    inline_notice(ui, "Key", key_copy, theme::primary());
+    inline_notice(
+        ui,
+        "New unlock key",
+        "A unique .cofferkey will be saved beside the protected copy. Move it somewhere separate after saving.",
+        theme::primary(),
+    );
 }
 
 fn open_page(app: &mut CofferApp, ui: &mut egui::Ui) {
@@ -781,7 +705,7 @@ fn processing(app: &mut CofferApp, ui: &mut egui::Ui, title: &str) {
             );
             ui.add_space(16.0);
             ui.label(
-                egui::RichText::new("Prototype preview. No files are read or written.")
+                egui::RichText::new("Coffer is working locally. Keep the application open.")
                     .color(theme::text_secondary()),
             );
             ui.add_space(16.0);
@@ -794,8 +718,8 @@ fn processing(app: &mut CofferApp, ui: &mut egui::Ui, title: &str) {
 fn protect_complete(app: &mut CofferApp, ui: &mut egui::Ui) {
     page_intro(
         ui,
-        "Protection preview complete",
-        "These are the outputs the production workflow will create.",
+        "Protection complete",
+        "Your protected file is ready. Keep its unlock key somewhere separate.",
     );
     result_paths(
         app,
@@ -809,8 +733,8 @@ fn protect_complete(app: &mut CofferApp, ui: &mut egui::Ui) {
 fn open_complete(app: &mut CofferApp, ui: &mut egui::Ui) {
     page_intro(
         ui,
-        "Restoration preview complete",
-        "No file was written because cryptography is not connected yet.",
+        "Restoration complete",
+        "The file was authenticated completely before Coffer restored it.",
     );
     result_paths(app, ui, app.decryption_output.clone(), None, false);
     if app.offer_text_preview && app.decrypted_text.is_some() {
@@ -948,6 +872,13 @@ fn security_content(ui: &mut egui::Ui) {
         "A lost key cannot be recreated by Coffer.",
         theme::warning(),
     );
+    ui.add_space(16.0);
+    inline_notice(
+        ui,
+        "Future key carriers must be attachments",
+        "For the planned image and file carrier feature, choose Attach file or Send as document. Do not paste an image inline or send it with a normal photo button. Those methods often compress or rewrite the file, so the received copy will not work as a key.",
+        theme::primary(),
+    );
 }
 
 fn security_group(ui: &mut egui::Ui, title: &str, body: &str) {
@@ -1020,10 +951,12 @@ fn settings_page(app: &mut CofferApp, ui: &mut egui::Ui) {
                     .color(theme::text_primary()),
             );
             ui.add_space(10.0);
-            ui.label(egui::RichText::new("Created by John Doe").color(theme::text_secondary()));
+            ui.label(
+                egui::RichText::new("Created by Rémy Picciano").color(theme::text_secondary()),
+            );
             ui.add_space(4.0);
             ui.label(
-                egui::RichText::new("Copyright © 2026 John Doe. All rights reserved.")
+                egui::RichText::new("Copyright © 2026 Rémy Picciano. All rights reserved.")
                     .small()
                     .color(theme::text_muted()),
             );
@@ -1038,17 +971,12 @@ fn settings_controls(app: &mut CofferApp, ui: &mut egui::Ui) {
         .inner_margin(egui::Margin::symmetric(22, 8))
         .show(ui, |ui| {
             ui.set_width(ui.available_width());
-            setting_row(
-                ui,
-                &mut app.ask_for_output_location,
-                "Ask where to save",
-                "Choose a destination for each output.",
-            );
-            setting_row(
-                ui,
-                &mut app.confirm_before_replace,
-                "Confirm before replacing",
-                "Never overwrite an existing file without approval.",
+            ui.add_space(14.0);
+            ui.label(
+                egui::RichText::new("OPTIONAL BEHAVIOR")
+                    .size(11.0)
+                    .strong()
+                    .color(theme::primary()),
             );
             setting_row(
                 ui,
@@ -1056,13 +984,59 @@ fn settings_controls(app: &mut CofferApp, ui: &mut egui::Ui) {
                 "Offer text preview",
                 "Show an optional in-memory preview for supported text files.",
             );
-            setting_row(
+            ui.add_space(18.0);
+            ui.label(
+                egui::RichText::new("BUILT-IN SAFEGUARDS")
+                    .size(11.0)
+                    .strong()
+                    .color(theme::primary()),
+            );
+            setting_info_row(
                 ui,
-                &mut app.clear_recent_locations,
-                "Clear recent locations",
-                "Do not retain recently used folders after Coffer closes.",
+                "Explicit destinations",
+                "Every output location is shown for review before an operation starts.",
+            );
+            setting_info_row(
+                ui,
+                "Existing files are protected",
+                "Coffer stops instead of replacing an existing container, key, or restored file.",
+            );
+            setting_info_row(
+                ui,
+                "No location history",
+                "Recently used folders are not persisted after Coffer closes.",
             );
         });
+}
+
+fn setting_info_row(ui: &mut egui::Ui, title: &str, body: &str) {
+    ui.add_space(18.0);
+    ui.horizontal(|ui| {
+        ui.vertical(|ui| {
+            ui.label(
+                egui::RichText::new(title)
+                    .size(16.0)
+                    .strong()
+                    .color(theme::text_primary()),
+            );
+            ui.add_space(7.0);
+            ui.label(
+                egui::RichText::new(body)
+                    .size(13.0)
+                    .color(theme::text_muted()),
+            );
+        });
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            ui.label(
+                egui::RichText::new("Always")
+                    .small()
+                    .strong()
+                    .color(theme::text_muted()),
+            );
+        });
+    });
+    ui.add_space(18.0);
+    ui.separator();
 }
 
 fn settings_summary(ui: &mut egui::Ui) {

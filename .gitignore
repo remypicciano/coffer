@@ -1,6 +1,10 @@
 # Rust
 /target/
 
+# Python recovery-tool cache
+__pycache__/
+*.py[cod]
+
 # Local release artifacts
 /dist/
 
@@ -18,6 +22,18 @@
 
 # Environment files
 .env
+.env.*
+!.env.example
+
+# Keys and credentials
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa*
+id_ed25519*
 
 # Logs
 *.log

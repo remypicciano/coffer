@@ -1,0 +1,62 @@
+name: Bug report
+description: Report a reproducible problem that does not contain sensitive information.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Never upload a `.cofferkey`, passphrase, carrier file, private plaintext, or confidential container. Security vulnerabilities belong in a private security advisory, not a public issue.
+  - type: input
+    id: version
+    attributes:
+      label: Coffer version or commit
+      placeholder: v0.1.0 or a commit hash
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Linux aarch64
+        - Linux x86_64
+        - Windows x86_64
+        - macOS arm64
+        - macOS x86_64
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Use synthetic filenames and data only.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      placeholder: |
+        1. Open Coffer
+        2. Select a synthetic test file
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety confirmation
+      options:
+        - label: I removed keys, passphrases, confidential data, sensitive paths, and private files from this report.
+          required: true
+        - label: This report is not a security vulnerability requiring private disclosure.
+          required: true

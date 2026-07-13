@@ -1,6 +1,6 @@
 # Coffer container and key format v1
 
-Status: design specification. The current UI still simulates file operations; this document defines the minimal format that the real implementation must follow.
+Status: stable as of Coffer 1.0.0. The production core, filesystem operations, and UI integration follow this format. The deterministic compatibility fixture is enforced by the automated test suite. Version 1 compatibility is frozen; incompatible changes require a new format version.
 
 All integers are unsigned and stored in big-endian byte order. Parsers must reject truncated input, inconsistent lengths, unsupported versions, and unsupported algorithms.
 
@@ -49,7 +49,7 @@ On restore, the filename remains untrusted even though it was authenticated. Cof
 
 Authentication failures use one public error regardless of whether the likely cause is a wrong key, modified prefix, modified ciphertext, or corruption.
 
-## `.key` file
+## `.cofferkey` file
 
 | Field | Size | Value |
 | --- | ---: | --- |
@@ -59,7 +59,7 @@ Authentication failures use one public error regardless of whether the likely ca
 | Reserved | 2 bytes | Must be `0` in v1 |
 | Key material | 32 bytes | Cryptographically random AES key |
 
-The encoded key file is exactly 44 bytes. Other lengths, magic values, versions, algorithms, or nonzero reserved bytes are invalid. Writers should request owner-only permissions on Unix-like systems (`0600`) and must not silently replace an existing key file.
+The `.cofferkey` extension identifies the file in desktop interfaces; the extension is not a security boundary. The encoded key file is exactly 44 bytes. Other lengths, magic values, versions, algorithms, or nonzero reserved bytes are invalid. Writers request owner-only permissions on Unix-like systems (`0600`) and never replace an existing key file.
 
 The key format marker identifies a valid Coffer key; it does not reveal which container it opens. AES-GCM authentication determines whether the selected key matches.
 
@@ -78,3 +78,28 @@ The key format marker identifies a valid Coffer key; it does not reveal which co
 ## Compatibility
 
 Version 1 readers must reject unknown versions rather than guessing. Future metadata, chunked large-file encryption, secret sharing, or algorithm changes require a deliberately specified new format version. Cross-platform test fixtures must guarantee byte-for-byte compatibility on macOS, Windows, and Linux.
+
+### Deterministic compatibility fixture
+
+This fixture is for compatibility testing only. Production keys and nonces must always come from the operating system's secure random source.
+
+| Input | Value |
+| --- | --- |
+| Key | 32 bytes of `0x11` |
+| Nonce | 12 bytes of `0x22` |
+| Filename | UTF-8 `note.txt` |
+| File bytes | UTF-8 `hello` |
+
+Expected complete container, encoded as hexadecimal:
+
+```text
+434f4646455200010101222222222222222222222222000000000000002717ff6926b4aab12b9d4bde3c48a6e9d51f96a58706edc3edae22ac447457f57b1a54dfb50676d9
+```
+
+Expected decrypted payload, encoded as hexadecimal:
+
+```text
+00086e6f74652e747874000000000000000568656c6c6f
+```
+
+The automated Rust test locks the complete container bytes. The vector has also been independently decrypted with Node's AES-256-GCM implementation using bytes `0..30` as associated authenticated data, bytes `10..22` as the nonce, and the final 16 ciphertext bytes as the authentication tag.

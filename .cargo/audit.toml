@@ -1,0 +1,5 @@
+[advisories]
+ignore = [
+    "RUSTSEC-2026-0194", # Build-time Wayland XML parser; input is bundled protocol XML.
+    "RUSTSEC-2026-0195", # Build-time Wayland XML parser; input is bundled protocol XML.
+]
