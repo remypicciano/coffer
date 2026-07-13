@@ -91,7 +91,7 @@ Coffer is a local-first desktop application for protecting individual files with
 - Scales between wide desktop and compact window layouts.
 - Uses hidden visual scrollbars while preserving wheel and trackpad scrolling.
 - Distinguishes interactive controls from informational surfaces and workflow status.
-- Includes authorship and copyright placeholders for John Doe.
+- Includes authorship and copyright attribution for Rémy Picciano.
 
 ### Settings and security information
 

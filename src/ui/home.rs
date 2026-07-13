@@ -78,7 +78,7 @@ pub fn show_splash(app: &mut CofferApp, ui: &mut egui::Ui) {
             ui.painter().text(
                 egui::pos2(ui.max_rect().center().x, ui.max_rect().bottom() - 30.0),
                 egui::Align2::CENTER_CENTER,
-                "Created by John Doe",
+                "Created by Rémy Picciano",
                 egui::FontId::proportional(12.0),
                 tint(egui::Color32::from_rgb(145, 143, 163)),
             );
@@ -951,10 +951,12 @@ fn settings_page(app: &mut CofferApp, ui: &mut egui::Ui) {
                     .color(theme::text_primary()),
             );
             ui.add_space(10.0);
-            ui.label(egui::RichText::new("Created by John Doe").color(theme::text_secondary()));
+            ui.label(
+                egui::RichText::new("Created by Rémy Picciano").color(theme::text_secondary()),
+            );
             ui.add_space(4.0);
             ui.label(
-                egui::RichText::new("Copyright © 2026 John Doe. All rights reserved.")
+                egui::RichText::new("Copyright © 2026 Rémy Picciano. All rights reserved.")
                     .small()
                     .color(theme::text_muted()),
             );
