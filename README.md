@@ -4,6 +4,8 @@ Coffer is a cross-platform desktop application for protecting local files with a
 
 Version 1.0.0 is the first stable format release. Download archives for Windows, Linux, and macOS from [GitHub Releases](https://github.com/remypicciano/coffer/releases). Release archives include SHA-256 checksums; builds are currently unsigned, so verify the checksum and repository provenance before use.
 
+Visit the [Coffer project site](https://remypicciano.github.io/coffer/) for an overview of the security model, format, platform builds, and v2 roadmap.
+
 > **Carrier-file warning for the planned v2 feature:** an image or other file used as a key carrier must remain byte-for-byte identical. Send it with **Attach file** or **Send as document**. Do not paste it inline and do not use a chat application's normal photo-sharing button; those options commonly compress or rewrite the file, and the received copy will not unlock the container.
 
 ## Development
