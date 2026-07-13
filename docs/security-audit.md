@@ -44,3 +44,5 @@ Coffer logs application lifecycle and generic operation state. It records operat
 ## External review
 
 Passing automated checks is not a substitute for independent cryptographic and parser review. The v1 format and implementation should receive focused review before Coffer is represented as externally audited software.
+
+The repository-wide [threat model](threat-model.md) records stable v1 residual risks and the questions that must be resolved before the [v2 draft](coffer-format-v2.md) becomes an implementation target.

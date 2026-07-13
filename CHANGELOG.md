@@ -2,6 +2,14 @@
 
 All notable changes to Coffer are recorded here. The project follows semantic versioning once tagged releases begin.
 
+## Unreleased
+
+### Added
+
+- Review draft of the Coffer v2 carrier-only container, authenticated sanitization records, parser limits, and release gate.
+- Repository threat model covering v1 guarantees, residual risks, v2 review questions, and the verification program.
+- Public GitHub Pages site for the security boundary, format, downloads, and roadmap.
+
 ## [1.0.0] - 2026-07-13
 
 ### Added

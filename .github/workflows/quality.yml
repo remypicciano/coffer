@@ -1,0 +1,39 @@
+name: Repository quality
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  hygiene:
+    name: Repository hygiene
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Validate documentation links
+        run: python3 tools/check_docs.py
+
+      - name: Validate Pages site
+        run: python3 tools/check_site.py
+
+      - name: Compile Python recovery and validation tools
+        run: python3 -m py_compile tools/*.py
+
+      - name: Reject unexpected empty tracked files
+        shell: bash
+        run: |
+          empty_files="$(find . -type f -empty -not -path './.git/*' -not -path './site/.nojekyll')"
+          if [[ -n "$empty_files" ]]; then
+            printf 'Unexpected empty files:\n%s\n' "$empty_files" >&2
+            exit 1
+          fi

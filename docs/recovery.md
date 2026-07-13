@@ -6,6 +6,8 @@ For ordinary use, prefer the native archives attached to the [v1.0.0 release](ht
 
 The v1 format is platform-independent. A container created on macOS can be decrypted on Windows or Linux, and the reverse is also true. Coffer uses standard AES-256-GCM; no device identifier, operating-system credential, online account, server, or Coffer-controlled service is required.
 
+The v2 carrier design remains a review draft and is not covered by this recovery utility. Keep v1 recovery materials and binaries available even while v2 is being developed.
+
 ## Preferred recovery: build Coffer from source
 
 Install the stable Rust toolchain from <https://rustup.rs/>, obtain this repository, and run:

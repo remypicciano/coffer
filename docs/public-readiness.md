@@ -17,13 +17,16 @@ Last reviewed: July 13, 2026
 - The project has an explicit MIT license.
 - The tracked splash image has no ancillary metadata, and empty icon placeholders were removed.
 - Windows x86_64, Linux x86_64 and ARM64, and macOS Intel and Apple Silicon artifacts build successfully.
+- `main` is protected by an active ruleset requiring pull requests, all native builds, and all security checks.
+- Obsolete remote branches were verified as merged and removed.
+- The public project site is deployed through GitHub Pages with HTTPS enforcement and automated validation.
+- Repository description, homepage, and security/privacy topics are configured.
 
 ## Repository administration follow-up
 
-- Merge the reviewed release-readiness pull request into `main`.
-- Review and intentionally remove or retain every non-default remote branch.
-- Enable branch protection or a ruleset for `main`, requiring pull requests and passing Linux, Windows, and security checks.
-- Confirm the public repository description, topics, homepage, and support destinations.
+- Periodically review ruleset check names as workflows evolve so protections cannot become stale.
+- Enable Apple notarization and Microsoft code signing when protected publisher identities are available.
+- Revisit non-provider secret patterns and validity checks if the repository plan exposes those GitHub controls.
 
 ## Required before official production releases
 

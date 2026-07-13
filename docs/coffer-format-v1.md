@@ -79,6 +79,8 @@ The key format marker identifies a valid Coffer key; it does not reveal which co
 
 Version 1 readers must reject unknown versions rather than guessing. Future metadata, chunked large-file encryption, secret sharing, or algorithm changes require a deliberately specified new format version. Cross-platform test fixtures must guarantee byte-for-byte compatibility on macOS, Windows, and Linux.
 
+The separate [v2 review draft](coffer-format-v2.md) follows this rule and does not reinterpret any v1 byte or reserved field.
+
 ### Deterministic compatibility fixture
 
 This fixture is for compatibility testing only. Production keys and nonces must always come from the operating system's secure random source.

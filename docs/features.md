@@ -134,9 +134,9 @@ Coffer is a local-first desktop application for protecting individual files with
 - Does not protect plaintext from malware, screen capture, keyloggers, memory inspection, or another process already controlling the user's account.
 - Has automated verification but has not yet been represented as independently audited cryptographic software.
 
-## Version 2: planned and research-stage features
+## Version 2: specified for review, not implemented
 
-These features are documented concepts, not implemented v1 capabilities.
+These features are now defined in the [v2 format review draft](coffer-format-v2.md) and assessed in the [threat model](threat-model.md). They remain outside the production application until independent review, test vectors, fuzzing, resource limits, and cross-platform tests satisfy the documented release gate.
 
 ### Ordinary-file key carriers
 
@@ -148,6 +148,8 @@ These features are documented concepts, not implemented v1 capabilities.
 - Offer a stronger carrier-plus-passphrase profile using Argon2id and versioned parameters.
 - Support a short local fingerprint for confirming that backup or transferred carriers are byte-identical.
 - Consider multiple authorized carriers and separately reviewed recovery designs in later revisions.
+- Use a fixed carrier-only header with SHA-256, HKDF-SHA-256 domain separation, independent wrapping and payload nonces, and AES-256-GCM DEK wrapping.
+- Reserve carrier-plus-passphrase mode until its Argon2id encoding, parameters, denial-of-service limits, Unicode behavior, and independent vectors are frozen.
 
 ### Critical carrier-transfer warning
 
@@ -170,6 +172,7 @@ Those actions may rewrite the file even when it looks identical. A rewritten cop
 - Report what was removed and what could not be verified.
 - Defer formats such as PDF or RAW when removal may be incomplete, reversible, or damaging.
 - Keep sanitization behavior in the authenticated v2 specification rather than adding ambiguous v1 flags.
+- Encode removed, preserved, and unverified metadata classes in an authenticated, versioned sanitization record.
 
 ### Future release engineering
 

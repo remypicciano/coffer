@@ -1,6 +1,6 @@
 # Key-carrier safety for everyday use
 
-Key carriers are planned for Coffer format v2. They are not part of the v1 backend.
+Key carriers are specified for review in the [Coffer format v2 draft](coffer-format-v2.md). They are not part of the stable v1 backend and are not yet enabled in the application.
 
 ## The simple rule
 
@@ -41,3 +41,5 @@ The planned stronger mode combines the exact carrier with a passphrase protected
 ## Verifying a transferred copy
 
 The v2 design should show a short fingerprint for local comparison. Matching fingerprints prove that two copies are byte-identical. A fingerprint is for checking copies; it is not a replacement for the carrier and should not be treated as an unlock key.
+
+The draft derives this display value from a domain-separated hash of the complete carrier digest. It must never be written into the carrier or included in logs.

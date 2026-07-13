@@ -54,3 +54,13 @@ feat(core): report authenticated byte progress
 ```
 
 Every pull request must pass formatting, tests, strict Clippy, all platform builds, full-history secret scanning, RustSec, dependency policy, and dependency review where applicable.
+
+Run repository-level documentation and site checks with:
+
+```sh
+python3 tools/check_docs.py
+python3 tools/check_site.py
+python3 -m py_compile tools/*.py
+```
+
+Format v2 work must follow the staged release gate in [`coffer-format-v2.md`](coffer-format-v2.md). Keep experimental parsers and fixtures isolated until domain separation, resource limits, deterministic vectors, fuzz targets, and an independent implementation have been reviewed.
