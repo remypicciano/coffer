@@ -1,0 +1,48 @@
+name: Security audit
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - Cargo.lock
+      - Cargo.toml
+      - .cargo/audit.toml
+      - .github/workflows/security-audit.yml
+  push:
+    branches:
+      - main
+    paths:
+      - Cargo.lock
+      - Cargo.toml
+      - .cargo/audit.toml
+      - .github/workflows/security-audit.yml
+  schedule:
+    - cron: "17 9 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  rustsec:
+    name: RustSec advisory scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Install stable Rust
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+
+      - name: Cache Cargo tools
+        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2.9.1
+        with:
+          cache-targets: false
+          key: cargo-audit-0.22.2
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked --version 0.22.2
+
+      - name: Scan locked dependencies
+        run: cargo audit

@@ -45,6 +45,8 @@ rustup target add x86_64-pc-windows-msvc
 cargo build --release --target x86_64-pc-windows-msvc
 ```
 
+The repository's **Windows build** GitHub Actions workflow produces a downloadable `coffer-windows-x86_64` ZIP containing `coffer-windows-x86_64.exe` and a SHA-256 checksum.
+
 ## Linux x64 build
 
 On Debian, Ubuntu, or Kali Linux:
@@ -67,3 +69,7 @@ The repository's **Linux build** GitHub Actions workflow produces downloadable `
 - [Key-carrier safety](docs/key-carrier-safety.md)
 - [Security audit notes](docs/security-audit.md)
 - [Development and repository hygiene](docs/development.md)
+- [Security policy](SECURITY.md)
+- [Support policy](SUPPORT.md)
+- [Contributing](CONTRIBUTING.md)
+- [Public repository readiness](docs/public-readiness.md)
