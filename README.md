@@ -56,7 +56,7 @@ cargo build --locked --release
 ./target/release/coffer
 ```
 
-The repository's **Linux build** GitHub Actions workflow also produces a downloadable `coffer-linux-x86_64` archive. It can be started manually from the repository's **Actions** tab.
+The repository's **Linux build** GitHub Actions workflow produces downloadable `coffer-linux-x86_64` and `coffer-linux-aarch64` archives on native GitHub-hosted runners. It can be started manually from the repository's **Actions** tab.
 
 ## Project documentation
 
